@@ -295,7 +295,7 @@ typedef struct {
 	void (*help_func)(void);	/* Print --help info		*/
 	void (*usage_func)(void);	/* Print --usage info		*/
 
-	int dataset;	/* added by Sinashan */ 
+	int dataset_size;	/* added by Sinashan */ 
 	char *burst_buffer;		/* --bb				*/
 	char *burst_buffer_file;	/* --bbf			*/
 	char *clusters;			/* cluster to run this on. */
@@ -325,6 +325,7 @@ typedef struct {
 	int time_limit;			/* --time, in minutes		*/
 	int time_min;			/* --min-time, in minutes	*/
 	char *partition;		/* --partition			*/
+	uint32_t *hichi;		/* --partition			*/
 	uint32_t profile;		/* --profile=[all | none]	*/
 	enum task_dist_states distribution;
 					/* --distribution		*/

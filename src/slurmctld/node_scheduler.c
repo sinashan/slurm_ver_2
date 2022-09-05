@@ -183,7 +183,6 @@ extern void allocate_nodes(job_record_t *job_ptr)
 
 	for (i = 0, node_ptr = node_record_table_ptr; i < node_record_count;
 	     i++, node_ptr++) {
-		printf("kiiiir\n");
 		if (!bit_test(job_ptr->node_bitmap, i))
 			continue;
 

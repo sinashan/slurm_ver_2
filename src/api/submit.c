@@ -74,16 +74,16 @@ extern int slurm_submit_batch_job(job_desc_msg_t *req,
 	 */
 	if (req->alloc_sid == NO_VAL)
 		req->alloc_sid = getsid(0);
-	
+		
 	req_msg.msg_type = REQUEST_SUBMIT_BATCH_JOB;
 	req_msg.data     = req;
-	
+
 	rc = slurm_send_recv_controller_msg(&req_msg, &resp_msg,
 					    working_cluster_rec);
 	
 	if (rc == SLURM_ERROR)
 		return SLURM_ERROR;
-
+	
 	switch (resp_msg.msg_type) {
 	case RESPONSE_SLURM_RC:
 		rc = ((return_code_msg_t *) resp_msg.data)->return_code;

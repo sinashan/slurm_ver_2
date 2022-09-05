@@ -1470,7 +1470,7 @@ typedef struct job_descriptor {	/* For submit, allocate, and update requests */
 	uint32_t cpu_freq_gov;  /* cpu frequency governor */
 	char *cpus_per_tres;	/* semicolon delimited list of TRES=# values */
 	void *crontab_entry;	/* really cron_entry_t */
-	int dataset;	/* dataset size (added by Sinashan) */
+	int dataset_size;
 	time_t deadline;	/* deadline */
 	uint32_t delay_boot;	/* delay boot for desired node state */
 	char *dependency;	/* synchronize job execution with other jobs */
@@ -1646,7 +1646,6 @@ typedef struct job_info {
 	uint32_t cpu_freq_gov;  /* cpu frequency governor */
 	char *cpus_per_tres;	/* semicolon delimited list of TRES=# values */
 	char *cronspec;		/* cron time specification (scrontab jobs) */
-	int dataset;	/* added by Sinashan */
 	time_t deadline;	/* deadline */
 	uint32_t delay_boot;	/* delay boot for desired node state */
 	char *dependency;	/* synchronize job execution with other jobs */

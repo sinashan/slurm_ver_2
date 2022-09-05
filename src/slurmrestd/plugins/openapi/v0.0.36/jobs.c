@@ -1173,7 +1173,6 @@ static data_t *dump_job_info(slurm_job_info_t *job, data_t *jd)
 			job->tres_alloc_str);
 	data_set_int(data_key_set(jd, "user_id"), job->user_id);
 	data_set_string(data_key_set(jd, "user_name"), job->user_name);
-	printf("Salam")
 	/* wait4switch intentionally omitted */
 	data_set_string(data_key_set(jd, "wckey"), job->wckey);
 	data_set_string(data_key_set(jd, "current_working_directory"),

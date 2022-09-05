@@ -43,6 +43,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/param.h>               /* MAXPATHLEN */
@@ -91,6 +92,21 @@ partition_info_msg_t *old_part_info_ptr = NULL; /* (added by sinashan)  */
 int all_flag = 0;	/* display even hidden partitions (added by sinashan) */
 partition_info_t *part_ptr = NULL; /* added by Sinashan */
 partition_info_msg_t *part_info_ptr = NULL; /* added by Sinashan */
+
+/* added by Sinashan */
+const double AVERAGE_HIT_RATIO = 0.5;
+const double SSD_BW = 500;	// MB/s
+const double HDD_BW = 800;	// MB/s
+const double SSD_IOPS = 2048;	// IO/s
+const double HDD_IOPS = 95000;	// IO/s
+const int CACHE_PART_SIZE = 500; // GB
+const uint32_t EXECUTION_TIME = 200;	// minutes fot 500 GB dataset size
+
+/* Hit Ratios */
+const double tensorflow_hit = 0.5;
+const double pytorch_hit = 0.4;
+const double opencv_hit = 0.5;
+const double python_hit = 0.5;
 
 
 int main(int argc, char **argv)
@@ -342,11 +358,11 @@ int main(int argc, char **argv)
 		
 	if (!quiet) {
 		if (!sbopt.parsable) {
-			printf("Submitted batch job %u", resp->job_id);
+			//printf("Submitted batch job %u", resp->job_id);
 			if (working_cluster_rec)
 				printf(" on cluster %s",
 				       working_cluster_rec->name);
-			printf("\n");
+			//printf("\n");
 		} else {
 			printf("%u", resp->job_id);
 			if (working_cluster_rec)
@@ -359,36 +375,55 @@ int main(int argc, char **argv)
 		rc = _job_wait(resp->job_id);
 
 	/* added by Sinashan */
+	FILE *ds_store;
 	uint32_t alternate_jobid;	// a job id in case the current one needs to be cancelled
+	int dataset_cache_not_execute=0;
 	sleep(2);
 	slurm_load_job(&resps, resp->job_id, 0);
 	job_ptr = resps->job_array;
 	alternate_jobid = job_ptr->job_id + 1;
 	scontrol_print_part(NULL);
+	
+	ds_store = fopen("jobid_dataset", "a");
 
 	//slurm_sprint_job_info(job_ptr, 0);
 	printf("Job State: %s\n", job_state_string(job_ptr->job_state));
 	if(!strcmp("PENDING", job_state_string(job_ptr->job_state))){
+		char* temp_part = job_ptr->partition;
+		printf("Partition %s cannot be used because it's full.\n", job_ptr->partition);
+		slurm_kill_job(resp->job_id, SIGKILL, KILL_JOB_BATCH);
 		for (i = 0; i < part_info_ptr->record_count; i++) {
-			if(!strcmp(job_ptr->partition, part_ptr[i].name)) {
-				printf("We can't use partition %s because it's full.\n", part_ptr[i].name);
-				slurm_kill_job(resp->job_id, SIGKILL, KILL_JOB_BATCH);
+			char part_first_letter[1];
+			sprintf(part_first_letter, "%.*s", 1, part_ptr[i].name);
+			if(!strcmp(temp_part, part_ptr[i].name)) {
+				if(i == part_info_ptr->record_count-1) {
+					dataset_cache_not_execute = 1;
+					printf("No free partition available\n");
+					break;
+				}
 				continue;
 			}
 
+			if (desc->dataset_size > 0)
+				if (strcmp(part_first_letter, "c"))
+					continue;
+
 			desc->partition = part_ptr[i].name;
 			slurm_submit_batch_job(desc, resp);
-			sleep(2);
+			sleep(3);
 			slurm_load_job(&resps, alternate_jobid, 0);
 			job_ptr = resps->job_array;
 
 			if(!strcmp("RUNNING", job_state_string(job_ptr->job_state))){
-				printf("Job cancelled. New job submitted with the ID of: %d\n", alternate_jobid);
+				printf("Job cancelled. New job submitted with the ID of %d\n", alternate_jobid);
+				dataset_cache_not_execute = 1;
+				fprintf(ds_store, "%d\t%d\n", alternate_jobid, desc->dataset_size);
 				break;
 			}
 			else{
 				if(i == part_info_ptr->record_count-1) {
 					printf("No free partition available\n");
+					slurm_kill_job(alternate_jobid, SIGKILL, KILL_JOB_BATCH);
 					break;
 				}
 				slurm_kill_job(alternate_jobid, SIGKILL, KILL_JOB_BATCH);
@@ -396,8 +431,29 @@ int main(int argc, char **argv)
 				continue;
 			}
 		}		
-
 	} 
+	else{
+		dataset_cache_not_execute = 1;
+		fprintf(ds_store, "%d\t%d\n", resp->job_id, desc->dataset_size);
+		printf("Submitted batch job %u\n", resp->job_id);
+	}
+
+	//printf("Start Time: %lld\n", (long long) job_ptr->start_time);
+	//printf("Eligible Time: %lld\n", (long long) job_ptr->start_time);
+	//printf("End Time: %lld\n", (long long) job_ptr->end_time);
+
+	if (dataset_cache_not_execute == 0 && desc->dataset_size > 0)
+	{
+		char* new_partition;
+	 	new_partition = read_from_dataset_file(desc->dataset_size, job_ptr->name);
+		//printf("New Partition: %s\n", new_partition);
+		desc->partition = new_partition;
+		slurm_submit_batch_job(desc, resp);
+		alternate_jobid++;
+		printf("Job submitted to the queue of %s partition with the shortest exeuction time.\n", new_partition);
+	}
+
+
 
 
 	
@@ -589,11 +645,34 @@ static int _fill_job_desc_from_opts(job_desc_msg_t *desc)
 	desc->profile = opt.profile;
 	
 	/* added by Sinashan (change partition if needed) */
-	if(opt.dataset){
-		desc->dataset = opt.dataset;
+	if (opt.dataset_size){
+		desc->dataset_size = opt.dataset_size;
 		printf("You have specified a data set size of %d GB for your application.\n"
-		, desc->dataset);
+		, desc->dataset_size);
+		char tmp_part[1];
+		sprintf(tmp_part, "%.*s", 1, desc->partition);
+		if (!strcmp("c", tmp_part))
+		;
+		else
+		{
+			// dataset specified with no cache partition. Change partition
+			printf("The partition in the script does not have cache. Switching to a cache partition...\n");
+			desc->partition = "cache";
+		}
 	}
+	else
+	{
+		char tmp_part[1];
+		sprintf(tmp_part, "%.*s", 1, desc->partition);
+		if (!strcmp("c", tmp_part))
+		{
+			// cache partition specified with no dataset size. Change partition
+			printf("Cache partition specified with no dataset size. Switching to a base partition...\n");
+			desc->partition = "base";
+		}
+		else ;
+	}
+	
 
 	if (opt.licenses)
 		desc->licenses = xstrdup(opt.licenses);
@@ -1189,4 +1268,133 @@ scontrol_print_part (char *partition_name)
 		} else if (quiet_flag != 1)
 			printf ("No partitions in the system\n");
 	}
+}
+
+
+/* added by Sinashan */ 
+extern 
+char *read_from_dataset_file(int current_dataset, char *job_name)
+{
+	FILE *fp;
+    char *line = NULL;
+	char *jobid_token;
+	char *dataset_token;
+	char *cache_part_name;
+	char *base_part_name = "base";
+	char *app_name;	/* taken from job name */
+    size_t len = 0;
+    ssize_t read;
+	int dataset_size, hdd_exec_time, ssd_exec_time;
+	uint32_t execution, finish_time, time_min_cache, time_min_base, base_execution, avg_io_rate;
+	double cache_hit, current_execution_time;
+
+	slurm_job_info_t *job_ptr;	
+	job_info_msg_t *resps = NULL;
+	
+    fp = fopen("jobid_dataset", "r");
+    if (fp == NULL)
+        exit(EXIT_FAILURE);
+
+	time_min_cache = ((uint32_t) time(NULL)) * 2;
+	time_min_base = ((uint32_t) time(NULL)) * 2;
+
+
+	app_name = strtok(job_name, "_");
+	//printf("%s\n", app_name);
+	if (current_dataset <= 500)
+		cache_hit = 1;
+	else if (!strcmp(app_name, "tensorflow"))
+		cache_hit = tensorflow_hit;
+	else if (!strcmp(app_name, "pytorch"))
+		cache_hit = pytorch_hit;
+	else if (!strcmp(app_name, "opencv"))
+		cache_hit = opencv_hit;
+	else if (!strcmp(app_name, "python"))
+		cache_hit = python_hit;
+	else
+		cache_hit = 0.1;
+
+	/* execution time on base partition */
+	hdd_exec_time = (1 - cache_hit) * EXECUTION_TIME;
+	//printf("HDD Time: %d\n", hdd_exec_time);
+	ssd_exec_time = EXECUTION_TIME - hdd_exec_time;
+	//printf("SSD Time: %d\n", ssd_exec_time);
+	ssd_exec_time *= (SSD_BW / HDD_BW);
+	//printf("SSD Time if on HDD: %d\n", ssd_exec_time);
+	//ssd_exec_time *= (SSD_IOPS / HDD_IOPS);
+	hdd_exec_time += ssd_exec_time;
+	//printf("All HDD Time: %d\n", hdd_exec_time);
+	base_execution = (uint32_t) time(NULL) + (uint32_t) hdd_exec_time;
+	printf("Execution on a base (no cache) partition: %d\tFinish Time: %d\n", \
+				hdd_exec_time, base_execution);
+	
+	current_execution_time = ((current_dataset * 1024 * cache_hit) / SSD_BW) + \
+								((current_dataset * 1024 * (1-cache_hit)) / HDD_BW);
+	printf("Current Exeuction time considering cache hits: %d\n", (uint32_t) current_execution_time);
+
+
+    while ((read = getline(&line, &len, fp)) != -1) {
+		jobid_token = strtok(line, "\t");	/* Job ID */
+		dataset_token = strtok(NULL, "\t");	/* dataset */
+		dataset_size = atoi(dataset_token);
+		char *previous_job_name;
+		char *previous_app_name;
+		double previous_cache_hit;
+		uint32_t previous_exec_time;
+		int partition_counter = 0;
+		char *base = "base";
+		char *base_num;
+
+		/* cache partition */
+		if (dataset_size > 0)
+		{
+			slurm_load_job(&resps, (uint32_t) atoi(jobid_token), 0);
+			job_ptr = resps->job_array;
+			previous_job_name = job_ptr->name;
+			previous_app_name = strtok(job_name, "_");
+			if (dataset_size <= 500)
+				previous_cache_hit = 1;
+			else if (!strcmp(previous_app_name, "tensorflow"))
+				previous_cache_hit = tensorflow_hit;
+			else if (!strcmp(previous_app_name, "pytorch"))
+				previous_cache_hit = pytorch_hit;
+			else if (!strcmp(previous_app_name, "opencv"))
+				previous_cache_hit = opencv_hit;
+			else if (!strcmp(previous_app_name, "python"))
+				previous_cache_hit = python_hit;
+			else
+				previous_cache_hit = 0.1;
+
+			previous_exec_time = ((previous_cache_hit * dataset_size * 1024) / SSD_BW) \
+								+ (((1- previous_cache_hit) * dataset_size * 1024) / HDD_BW);
+			//execution = ((dataset_size * EXECUTION_TIME) / CACHE_PART_SIZE) * 60;	/* to seconds */
+			finish_time = (uint32_t) job_ptr->start_time + previous_exec_time;
+			if (finish_time < time_min_cache)
+			{
+				time_min_cache = finish_time;
+				cache_part_name = job_ptr->partition;
+			}
+		
+		}
+	
+		/* base partition */ 
+		else
+		{
+			partition_counter++;
+			sprintf(base_num,"%d", partition_counter);
+			base_part_name = strcat(base_part_name, base_num);
+		}
+		
+	}
+
+	printf("%s\n", base_part_name);
+
+    fclose(fp);
+    if (line)
+        free(line);
+
+	printf("Cache Execution: %d\n", time_min_cache + (uint32_t) current_execution_time);
+
+	if (base_execution < time_min_cache + (uint32_t) current_execution_time) return;
+	else return cache_part_name;
 }

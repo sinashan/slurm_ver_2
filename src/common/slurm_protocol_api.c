@@ -1510,7 +1510,7 @@ _pack_msg(slurm_msg_t *msg, header_t *hdr, Buf buffer)
 	tmplen = get_buf_offset(buffer);
 	pack_msg(msg, buffer);
 	msglen = get_buf_offset(buffer) - tmplen;
-
+	
 	/* update header with correct cred and msg lengths */
 	update_header(hdr, msglen);
 
@@ -1532,7 +1532,7 @@ int slurm_send_node_msg(int fd, slurm_msg_t * msg)
 	int      rc;
 	void *   auth_cred;
 	time_t   start_time = time(NULL);
-
+	
 	if (msg->conn) {
 		persist_msg_t persist_msg;
 
@@ -2008,7 +2008,7 @@ extern int slurm_send_recv_msg(int fd, slurm_msg_t *req,
 {
 	int rc = -1;
 	slurm_msg_t_init(resp);
-	
+
 	/* If we are using a persistent connection make sure it is the one we
 	 * actually want.  This should be the correct one already, but just make
 	 * sure.
@@ -2110,7 +2110,7 @@ _send_and_recv_msgs(int fd, slurm_msg_t *req, int timeout)
 extern int slurm_send_recv_controller_msg(slurm_msg_t * request_msg,
 				slurm_msg_t * response_msg,
 				slurmdb_cluster_rec_t *comm_cluster_rec)
-{
+{	
 	int fd = -1;
 	int rc = 0;
 	time_t start_time = time(NULL);

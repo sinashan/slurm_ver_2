@@ -1013,7 +1013,6 @@ extern Buf slurm_persist_msg_pack(slurm_persist_conn_t *persist_conn,
 				  persist_msg_t *req_msg)
 {
 	Buf buffer;
-
 	xassert(persist_conn);
 
 	if (persist_conn->flags & PERSIST_FLAG_DBD)
@@ -1061,7 +1060,6 @@ extern int slurm_persist_msg_unpack(slurm_persist_conn_t *persist_conn,
 		msg.protocol_version = persist_conn->version;
 
 		safe_unpack16(&msg.msg_type, buffer);
-
 		rc = unpack_msg(&msg, buffer);
 
 		resp_msg->msg_type = msg.msg_type;

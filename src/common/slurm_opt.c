@@ -1155,11 +1155,16 @@ static slurm_cli_opt_t slurm_opt_cpus_per_task = {
 };
 
 /* added by Sinashan */ 
-static int arg_set_dataset(slurm_opt_t *opt, const char *arg)
+static int arg_set_dataset_size(slurm_opt_t *opt, const char *arg)
 {
-	opt->dataset = atoi(arg);
+	opt->dataset_size = atoi(arg);
 
 	return SLURM_SUCCESS;
+}
+
+static int arg_get_dataset_size(slurm_opt_t *opt, const char *arg)
+{
+
 }
 
 static int arg_set_deadline(slurm_opt_t *opt, const char *arg)
@@ -1207,15 +1212,15 @@ static slurm_cli_opt_t slurm_opt_deadline = {
 };
 
 /* added by Sinashan */
-COMMON_OPTION_RESET(dataset, 0);
-static slurm_cli_opt_t slurm_opt_dataset = {
-	.name = "dataset",
+COMMON_OPTION_RESET(dataset_size, 0);
+static slurm_cli_opt_t slurm_opt_dataset_size = {
+	.name = "dataset-size",
 	.has_arg = required_argument,
 	.val = LONG_OPT_DATASET,
-	.set_func = arg_set_dataset,
-	.set_func_data = arg_set_dataset,
-	.get_func = arg_get_deadline,
-	.reset_func = arg_reset_deadline,
+	.set_func = arg_set_dataset_size,
+	.set_func_data = arg_set_dataset_size,
+	.get_func = arg_get_dataset_size,
+	.reset_func = arg_reset_dataset_size,
 };
 
 static int arg_set_debugger_test(slurm_opt_t *opt, const char *arg)
@@ -3498,6 +3503,7 @@ static slurm_cli_opt_t slurm_opt_partition = {
 	.reset_each_pass = true,
 };
 
+
 static int arg_set_power(slurm_opt_t *opt, const char *arg)
 {
 	opt->power = power_flags_id(arg);
@@ -3568,6 +3574,7 @@ static int arg_set_priority(slurm_opt_t *opt, const char *arg)
 
 	return SLURM_SUCCESS;
 }
+
 static int arg_set_data_priority(slurm_opt_t *opt, const data_t *arg,
 				 data_t *errors)
 {
@@ -4949,7 +4956,7 @@ static const slurm_cli_opt_t *common_options[] = {
 	&slurm_opt_cpu_freq,
 	&slurm_opt_cpus_per_gpu,
 	&slurm_opt_cpus_per_task,
-	&slurm_opt_dataset,
+	&slurm_opt_dataset_size,
 	&slurm_opt_deadline,
 	&slurm_opt_debugger_test,
 	&slurm_opt_delay_boot,

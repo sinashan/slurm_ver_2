@@ -52,7 +52,7 @@
 #define BUF_MAGIC 0x42554545
 #define BUF_SIZE (16 * 1024)
 #define MAX_BUF_SIZE ((uint32_t) 0xffff0000)	/* avoid going over 32-bits */
-#define REASONABLE_BUF_SIZE ((uint32_t) 0xbfff4000) /* three-quarters of max */
+#define REASONABLE_BUF_SIZE ((uint32_t) 0xbfffffff) /* three-quarters of max */
 #define FLOAT_MULT 1000000
 
 /* If we unpack a buffer that contains bad data, we want to avoid a memory
@@ -262,7 +262,7 @@ int	unpackmem_array(char *valp, uint32_t size_valp, Buf buffer);
 		goto unpack_error;			\
 } while (0)
 
-#define packstr(str,buf) do {				\
+#define packstr(str,buf) do {	\
 	uint32_t _size = 0;				\
 	if((char *)str != NULL)				\
 		_size = (uint32_t)strlen(str)+1;	\

@@ -147,5 +147,6 @@ extern int 	scontrol_load_partitions (partition_info_msg_t **
 					  part_info_pptr);
 
 extern int	scontrol_update_job (int argc, char **argv);
+extern char *read_from_dataset_file(int current_dataset, char *job_name);
 
 #endif	/* _HAVE_OPT_H */

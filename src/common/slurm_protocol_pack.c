@@ -3942,6 +3942,7 @@ _unpack_job_info_members(job_info_t * job, Buf buffer,
 		safe_unpackstr_xmalloc(&job->fed_siblings_viable_str,
 				       &uint32_tmp, buffer);
 
+
 		safe_unpackstr_xmalloc(&job->cpus_per_tres, &uint32_tmp,
 				       buffer);
 		safe_unpackstr_xmalloc(&job->mem_per_tres, &uint32_tmp,
@@ -3958,6 +3959,7 @@ _unpack_job_info_members(job_info_t * job, Buf buffer,
 				       buffer);
 		safe_unpackstr_xmalloc(&job->tres_per_task, &uint32_tmp,
 				       buffer);
+		
 
 		safe_unpack16(&job->mail_type, buffer);
 		safe_unpackstr_xmalloc(&job->mail_user, &uint32_tmp, buffer);
@@ -6815,6 +6817,7 @@ _pack_job_desc_msg(job_desc_msg_t * job_desc_ptr, Buf buffer,
 {
 	if (job_desc_ptr->script_buf)
 		job_desc_ptr->script = ((Buf) job_desc_ptr->script_buf)->head;
+	
 
 	/* Set bitflags saying we did or didn't request the below */
 	if (!job_desc_ptr->account)
@@ -6966,6 +6969,7 @@ _pack_job_desc_msg(job_desc_msg_t * job_desc_ptr, Buf buffer,
 		packstr(job_desc_ptr->tres_per_node, buffer);
 		packstr(job_desc_ptr->tres_per_socket, buffer);
 		packstr(job_desc_ptr->tres_per_task, buffer);
+
 		pack_cron_entry(job_desc_ptr->crontab_entry, protocol_version,
 				buffer);
 	} else if (protocol_version >= SLURM_MIN_PROTOCOL_VERSION) {
@@ -12719,6 +12723,7 @@ unpack_error:
 int
 pack_msg(slurm_msg_t const *msg, Buf buffer)
 {
+	//printf("Pack: %s(%u)\n", rpc_num2string(msg->msg_type), msg->msg_type);
 	if (msg->protocol_version < SLURM_MIN_PROTOCOL_VERSION) {
 		error("%s: Invalid message version=%hu, type:%hu",
 		      __func__, msg->protocol_version, msg->msg_type);
@@ -13363,6 +13368,7 @@ pack_msg(slurm_msg_t const *msg, Buf buffer)
 int
 unpack_msg(slurm_msg_t * msg, Buf buffer)
 {
+	//printf("Unpack: %s(%u)\n", rpc_num2string(msg->msg_type), msg->msg_type);
 	int rc = SLURM_SUCCESS;
 	msg->data = NULL;	/* Initialize to no data for now */
 

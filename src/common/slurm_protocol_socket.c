@@ -202,6 +202,9 @@ ssize_t slurm_msg_sendto_timeout(int fd, char *buffer,
 extern int slurm_send_timeout(int fd, char *buf, size_t size,
 			      uint32_t flags, int timeout)
 {
+	//printf("slurm_send_timeout\n");
+	//printf("Size: %lu\n", size);
+	//printf("Buffer Head: %s\n\n");
 	int rc;
 	int sent = 0;
 	int fd_flags;
@@ -310,6 +313,9 @@ extern int slurm_send_timeout(int fd, char *buf, size_t size,
 extern int slurm_recv_timeout(int fd, char *buffer, size_t size,
 			      uint32_t flags, int timeout )
 {
+	//printf("slurm_recv_timeout\n");
+	//printf("Size: %lu\n", size);
+	//printf("Buffer: %s\n\n", buffer);
 	int rc;
 	int recvlen = 0;
 	int fd_flags;
@@ -368,7 +374,9 @@ extern int slurm_recv_timeout(int fd, char *buffer, size_t size,
 			continue;
 		}
 
+		//printf("Receive: %d\n", recvlen);
 		rc = recv(fd, &buffer[recvlen], (size - recvlen), flags);
+		//printf("rc: %d\n", rc);
 		if (rc < 0)  {
 			if (errno == EINTR)
 				continue;

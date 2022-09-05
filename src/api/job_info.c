@@ -1447,6 +1447,7 @@ slurm_load_job (job_info_msg_t **job_info_msg_pptr, uint32_t job_id,
 	req_msg.msg_type = REQUEST_JOB_INFO_SINGLE;
 	req_msg.data     = &req;
 
+
 	/* With -M option, working_cluster_rec is set and  we only get
 	 * information for that cluster */
 	if (working_cluster_rec || !ptr || (show_flags & SHOW_LOCAL)) {
