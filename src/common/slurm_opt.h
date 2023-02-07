@@ -296,6 +296,7 @@ typedef struct {
 	void (*usage_func)(void);	/* Print --usage info		*/
 
 	int dataset_size;	/* added by Sinashan */ 
+	char* dataset_name;
 	char *burst_buffer;		/* --bb				*/
 	char *burst_buffer_file;	/* --bbf			*/
 	char *clusters;			/* cluster to run this on. */

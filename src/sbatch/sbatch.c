@@ -102,11 +102,51 @@ const double HDD_IOPS = 95000;	// IO/s
 const int CACHE_PART_SIZE = 500; // GB
 const uint32_t EXECUTION_TIME = 200;	// minutes fot 500 GB dataset size
 
-/* Hit Ratios */
+/* App Info */
+/* Tensorflow */
 const double tensorflow_hit = 0.5;
-const double pytorch_hit = 0.4;
+int tensorflow_average_exec_time = 1;
+int tensorflow_io_type = 0;	/* 0: seq, 1: rand */
+const double tensorflow_avg_read_hit = 0.5;
+int tensorflow_dataset_size = 500;
+int tensorflow_normalized_io = 1;
+/* Pytorch */
+const double pytorch_hit = 0.5;
+int pytorch_average_exec_time = 1;
+int pytorch_io_type = 0;	/* 0: seq, 1: rand */
+const double pytorch_avg_read_hit = 0.5;
+int pytorch_dataset_size = 500;
+int pytorch_normalized_io = 1;
+/* OpenCV */
 const double opencv_hit = 0.5;
+int opencv_average_exec_time = 1;
+int opencv_io_type = 0;	/* 0: seq, 1: rand */
+const double opencv_avg_read_hit = 0.5;
+int opencv_dataset_size = 500;
+int opencv_normalized_io = 1;
+/* Python */
 const double python_hit = 0.5;
+int python_average_exec_time = 1;
+int python_io_type = 0;	/* 0: seq, 1: rand */
+const double python_avg_read_hit = 0.5;
+int python_dataset_size = 500;
+int python_normalized_io = 1;
+
+
+/* Famous datasets */
+char* datasets[11] = {
+	"COCO",
+	"HowTO100M",
+	"LIReC",
+	"MIT Places Audio 400K",
+	"MIT Places Images",
+	"MPII Human Pose",
+	"Spoken COCO 600K",
+	"Spoken ObjectNet",
+	"UCF101",
+	"Zero Speech",
+	"Imagenet"
+};
 
 
 int main(int argc, char **argv)
@@ -643,14 +683,30 @@ static int _fill_job_desc_from_opts(job_desc_msg_t *desc)
 	desc->exc_nodes = xstrdup(opt.exclude);
 	desc->partition = xstrdup(opt.partition);
 	desc->profile = opt.profile;
-	
+	desc->dataset_name = xstrdup(opt.dataset_name);
+
+	if (!opt.dataset_size && desc->dataset_name != NULL){
+		printf("You have dataset name in your script. Please also specify dataset size\n");
+		return -1;
+	}
+	else if (opt.dataset_size && desc->dataset_name == NULL){
+		printf("You have dataset size in your script. Please also specify dataset name\n");
+		return -1;
+	}
 	/* added by Sinashan (change partition if needed) */
 	if (opt.dataset_size){
+		char tmp_part[1];
 		desc->dataset_size = opt.dataset_size;
+		sprintf(tmp_part, "%.*s", 1, desc->partition);
+		if (check_if_dataset_famous(desc->dataset_name)){
+			if (strcmp("l", tmp_part)){
+				printf("Famous dataset detected. Switching to local partition.\n");
+				desc->partition = "local";
+			}
+			else ;
+		}
 		printf("You have specified a data set size of %d GB for your application.\n"
 		, desc->dataset_size);
-		char tmp_part[1];
-		sprintf(tmp_part, "%.*s", 1, desc->partition);
 		if (!strcmp("c", tmp_part))
 		;
 		else
@@ -1397,4 +1453,15 @@ char *read_from_dataset_file(int current_dataset, char *job_name)
 
 	if (base_execution < time_min_cache + (uint32_t) current_execution_time) return;
 	else return cache_part_name;
+}
+
+extern
+int check_if_dataset_famous(char* ds_name){
+	int famous = 0;
+	for (int i = 0; i < sizeof(datasets) / sizeof(datasets[0]); i++){
+		if (!strcmp(datasets[i], ds_name)){
+			famous = 1;
+		}
+	}
+	return famous;
 }

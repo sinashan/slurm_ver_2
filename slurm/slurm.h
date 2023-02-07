@@ -1471,6 +1471,7 @@ typedef struct job_descriptor {	/* For submit, allocate, and update requests */
 	char *cpus_per_tres;	/* semicolon delimited list of TRES=# values */
 	void *crontab_entry;	/* really cron_entry_t */
 	int dataset_size;
+	char* dataset_name;
 	time_t deadline;	/* deadline */
 	uint32_t delay_boot;	/* delay boot for desired node state */
 	char *dependency;	/* synchronize job execution with other jobs */

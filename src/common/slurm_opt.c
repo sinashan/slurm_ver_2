@@ -1162,10 +1162,6 @@ static int arg_set_dataset_size(slurm_opt_t *opt, const char *arg)
 	return SLURM_SUCCESS;
 }
 
-static int arg_get_dataset_size(slurm_opt_t *opt, const char *arg)
-{
-
-}
 
 static int arg_set_deadline(slurm_opt_t *opt, const char *arg)
 {
@@ -1219,8 +1215,14 @@ static slurm_cli_opt_t slurm_opt_dataset_size = {
 	.val = LONG_OPT_DATASET,
 	.set_func = arg_set_dataset_size,
 	.set_func_data = arg_set_dataset_size,
-	.get_func = arg_get_dataset_size,
-	.reset_func = arg_reset_dataset_size,
+};
+
+COMMON_STRING_OPTION(dataset_name);
+static slurm_cli_opt_t slurm_opt_dataset_name = {
+	.name = "dataset-name",
+	.has_arg = required_argument,
+	.val = 'dn',
+	.set_func = arg_set_dataset_name,
 };
 
 static int arg_set_debugger_test(slurm_opt_t *opt, const char *arg)
@@ -4957,6 +4959,7 @@ static const slurm_cli_opt_t *common_options[] = {
 	&slurm_opt_cpus_per_gpu,
 	&slurm_opt_cpus_per_task,
 	&slurm_opt_dataset_size,
+	&slurm_opt_dataset_name,
 	&slurm_opt_deadline,
 	&slurm_opt_debugger_test,
 	&slurm_opt_delay_boot,
