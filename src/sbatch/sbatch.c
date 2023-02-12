@@ -1344,6 +1344,11 @@ char *read_from_dataset_file(int current_dataset, char *job_name)
 	uint32_t execution, finish_time, time_min_cache, time_min_base, base_execution, avg_io_rate;
 	double cache_hit, current_execution_time;
 
+	/* the new ones */
+	double time_on_cache, total_time_on_cache,
+			normalized_io_time_on_cache, compute_time,
+			avg_io_rate_on_cache, io_time_on_hdd, total_time_on_hdd;
+
 	slurm_job_info_t *job_ptr;	
 	job_info_msg_t *resps = NULL;
 	
@@ -1358,17 +1363,52 @@ char *read_from_dataset_file(int current_dataset, char *job_name)
 	app_name = strtok(job_name, "_");
 	//printf("%s\n", app_name);
 	if (current_dataset <= 500)
+	{
 		cache_hit = 1;
+	}
 	else if (!strcmp(app_name, "tensorflow"))
+	{
 		cache_hit = tensorflow_hit;
+		total_time_on_cache = (current_dataset / tensorflow_dataset_size) * tensorflow_average_exec_time;
+		normalized_io_time_on_cache = total_time_on_cache * tensorflow_normalized_io;
+		compute_time = total_time_on_cache - tensorflow_normalized_io;
+		avg_io_rate_on_cache = (tensorflow_avg_read_hit * SSD_BW) + ((1 - tensorflow_avg_read_hit) * HDD_BW);
+		io_time_on_hdd = (avg_io_rate_on_cache / HDD_BW) * normalized_io_time_on_cache; 
+		total_time_on_hdd = compute_time + io_time_on_hdd;
+	}
 	else if (!strcmp(app_name, "pytorch"))
+	{
 		cache_hit = pytorch_hit;
+		total_time_on_cache = (current_dataset / pytorch_dataset_size) * pytorch_average_exec_time;
+		normalized_io_time_on_cache = total_time_on_cache * pytorch_normalized_io;
+		compute_time = total_time_on_cache - pytorch_normalized_io;
+		avg_io_rate_on_cache = (pytorch_avg_read_hit * SSD_BW) + ((1 - pytorch_avg_read_hit) * HDD_BW);
+		io_time_on_hdd = (avg_io_rate_on_cache / HDD_BW) * normalized_io_time_on_cache; 
+		total_time_on_hdd = compute_time + io_time_on_hdd;
+	}
 	else if (!strcmp(app_name, "opencv"))
+	{
 		cache_hit = opencv_hit;
+		total_time_on_cache = (current_dataset / opencv_dataset_size) * opencv_average_exec_time;
+		normalized_io_time_on_cache = total_time_on_cache * opencv_normalized_io;
+		compute_time = total_time_on_cache - opencv_normalized_io;
+		avg_io_rate_on_cache = (opencv_avg_read_hit * SSD_BW) + ((1 - opencv_avg_read_hit) * HDD_BW);
+		io_time_on_hdd = (avg_io_rate_on_cache / HDD_BW) * normalized_io_time_on_cache; 
+		total_time_on_hdd = compute_time + io_time_on_hdd;
+	}
 	else if (!strcmp(app_name, "python"))
+	{
 		cache_hit = python_hit;
-	else
-		cache_hit = 0.1;
+		total_time_on_cache = (current_dataset / python_dataset_size) * python_average_exec_time;
+		normalized_io_time_on_cache = total_time_on_cache * python_normalized_io;
+		compute_time = total_time_on_cache - python_normalized_io;
+		avg_io_rate_on_cache = (python_avg_read_hit * SSD_BW) + ((1 - python_avg_read_hit) * HDD_BW);
+		io_time_on_hdd = (avg_io_rate_on_cache / HDD_BW) * normalized_io_time_on_cache; 
+		total_time_on_hdd = compute_time + io_time_on_hdd;
+	}
+
+	/* it should return from here */
+	
 
 	/* execution time on base partition */
 	hdd_exec_time = (1 - cache_hit) * EXECUTION_TIME;
@@ -1389,6 +1429,7 @@ char *read_from_dataset_file(int current_dataset, char *job_name)
 	printf("Current Exeuction time considering cache hits: %d\n", (uint32_t) current_execution_time);
 
 
+	/* DO NOT EXECUTE THIS */
     while ((read = getline(&line, &len, fp)) != -1) {
 		jobid_token = strtok(line, "\t");	/* Job ID */
 		dataset_token = strtok(NULL, "\t");	/* dataset */
