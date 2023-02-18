@@ -474,7 +474,13 @@ int main(int argc, char **argv)
 	} 
 	else{
 		dataset_cache_not_execute = 1;
-		fprintf(ds_store, "%d\t%d\n", resp->job_id, desc->dataset_size);
+		int submitted_exeuction_time = 0;	/* when does the submitted job end? */
+		if (desc->dataset_size != -2){
+			submitted_exeuction_time = 
+				calculate_execution_time(desc->dataset_size, job_ptr->name) +
+				(int) job_ptr->submit_time;
+		}
+		fprintf(ds_store, "%s\t%d\t%d\t%d\n", desc->partition, resp->job_id, desc->dataset_size, submitted_exeuction_time);
 		printf("Submitted batch job %u\n", resp->job_id);
 	}
 
@@ -1505,4 +1511,29 @@ int check_if_dataset_famous(char* ds_name){
 		}
 	}
 	return famous;
+}
+
+
+extern
+int calculate_execution_time(int dataset, char* job){
+	char* app_name;
+	app_name = strtok(job, "_");
+
+	if (!strcmp(app_name, "tensorflow"))
+	{
+		return (dataset / tensorflow_dataset_size) * tensorflow_average_exec_time;
+	}
+	else if (!strcmp(app_name, "pytorch"))
+	{
+		return (dataset / pytorch_dataset_size) * pytorch_average_exec_time;
+	}
+	else if (!strcmp(app_name, "opencv"))
+	{
+		return (dataset / opencv_dataset_size) * opencv_average_exec_time;
+	}
+	else if (!strcmp(app_name, "python"))
+	{
+		return (dataset / python_dataset_size) * python_average_exec_time;
+	}
+
 }
