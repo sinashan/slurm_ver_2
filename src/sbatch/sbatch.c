@@ -106,31 +106,35 @@ const uint32_t EXECUTION_TIME = 200;	// minutes fot 500 GB dataset size
 /* Tensorflow */
 const double tensorflow_hit = 0.5;
 int tensorflow_average_exec_time = 1;
-int tensorflow_io_type = 0;	/* 0: seq, 1: rand */
+int tensorflow_io_type = 0;	/* 1: seq, 0: rand */
 const double tensorflow_avg_read_hit = 0.5;
 int tensorflow_dataset_size = 500;
 int tensorflow_normalized_io = 1;
 /* Pytorch */
 const double pytorch_hit = 0.5;
 int pytorch_average_exec_time = 1;
-int pytorch_io_type = 0;	/* 0: seq, 1: rand */
+int pytorch_io_type = 0;	/* 1: seq, 0: rand */
 const double pytorch_avg_read_hit = 0.5;
 int pytorch_dataset_size = 500;
 int pytorch_normalized_io = 1;
 /* OpenCV */
 const double opencv_hit = 0.5;
 int opencv_average_exec_time = 1;
-int opencv_io_type = 0;	/* 0: seq, 1: rand */
+int opencv_io_type = 0;	/* 1: seq, 0: rand */
 const double opencv_avg_read_hit = 0.5;
 int opencv_dataset_size = 500;
 int opencv_normalized_io = 1;
 /* Python */
 const double python_hit = 0.5;
 int python_average_exec_time = 1;
-int python_io_type = 0;	/* 0: seq, 1: rand */
+int python_io_type = 0;	/* 1: seq, 0: rand */
 const double python_avg_read_hit = 0.5;
 int python_dataset_size = 500;
 int python_normalized_io = 1;
+
+
+/* used to take care of what the original partition in the script was */
+char* original_partition;
 
 
 /* Famous datasets */
@@ -429,7 +433,20 @@ int main(int argc, char **argv)
 	//slurm_sprint_job_info(job_ptr, 0);
 	printf("Job State: %s\n", job_state_string(job_ptr->job_state));
 	if(!strcmp("PENDING", job_state_string(job_ptr->job_state))){
-		char* temp_part = job_ptr->partition;
+		/* Cache partition is not empty */
+		if (!strcmp(original_partition, "cache")){
+			if (check_if_dataset_famous(desc->dataset_name)){
+
+			}
+			else{
+
+			}
+		}
+		/* Local partition is not empty */
+		else if (!strcmp(original_partition, "local")){
+
+		}
+		/*char* temp_part = job_ptr->partition;
 		printf("Partition %s cannot be used because it's full.\n", job_ptr->partition);
 		slurm_kill_job(resp->job_id, SIGKILL, KILL_JOB_BATCH);
 		for (i = 0; i < part_info_ptr->record_count; i++) {
@@ -470,7 +487,7 @@ int main(int argc, char **argv)
 				alternate_jobid = job_ptr->job_id + 1;
 				continue;
 			}
-		}		
+		}		*/
 	} 
 	else{
 		dataset_cache_not_execute = 1;
@@ -490,6 +507,9 @@ int main(int argc, char **argv)
 
 	if (dataset_cache_not_execute == 0 && desc->dataset_size > 0)
 	{
+		FILE *not_executed;
+		not_executed = fopen("not_executed", "a");
+		fprintf(not_executed, "%s\n", argv[1]);
 		char* new_partition;
 	 	new_partition = read_from_dataset_file(desc->dataset_size, job_ptr->name);
 		//printf("New Partition: %s\n", new_partition);
@@ -499,11 +519,6 @@ int main(int argc, char **argv)
 		printf("Job submitted to the queue of %s partition with the shortest exeuction time.\n", new_partition);
 	}
 
-
-
-
-	
-	
 
 
 #ifdef MEMORY_LEAK_DEBUG
@@ -690,6 +705,7 @@ static int _fill_job_desc_from_opts(job_desc_msg_t *desc)
 	desc->partition = xstrdup(opt.partition);
 	desc->profile = opt.profile;
 	desc->dataset_name = xstrdup(opt.dataset_name);
+	original_partition = opt.partition;
 
 	if (!opt.dataset_size && desc->dataset_name != NULL){
 		printf("You have dataset name in your script. Please also specify dataset size\n");
@@ -710,6 +726,18 @@ static int _fill_job_desc_from_opts(job_desc_msg_t *desc)
 				desc->partition = "local";
 			}
 			else ;
+		}
+		else{
+			// check if application name is sequential (1) or random (0)
+			if (check_app_name_io_type(opt.job_name))
+				desc->partition = "base";
+			// io type is random, so we need to check hit threshold
+			else{
+				if (!check_app_hit_threshold(opt.job_name))
+					desc->partition = "cache";
+				else
+					desc->partition = "base";
+			}
 		}
 		printf("You have specified a data set size of %d GB for your application.\n"
 		, desc->dataset_size);
@@ -1511,6 +1539,51 @@ int check_if_dataset_famous(char* ds_name){
 		}
 	}
 	return famous;
+}
+
+extern
+int check_app_name_io_type(char* job_name){
+	char *app_name;
+	app_name = strtok(job_name, "_");
+	if (!strcmp(app_name, "tensorflow"))
+		return tensorflow_io_type;
+	else if(!strcmp(app_name, "pytorch"))
+		return pytorch_io_type;
+	else if(!strcmp(app_name, "opencv"))
+		return opencv_io_type;
+	else if(!strcmp(app_name, "python"))
+		return python_io_type;
+	else
+		return 0;
+}
+
+extern
+int check_app_hit_threshold(char* job_name){
+	char *app_name;
+	int hit_threshold = 0.8;
+	app_name = strtok(job_name, "_");
+	if (!strcmp(app_name, "tensorflow"))
+	{
+		if (tensorflow_avg_read_hit > hit_threshold)
+			return 1;
+	}
+	else if(!strcmp(app_name, "pytorch"))
+	{
+		if (pytorch_avg_read_hit > hit_threshold)
+			return 1;
+	}
+	else if(!strcmp(app_name, "opencv"))
+	{
+		if (opencv_avg_read_hit > hit_threshold)
+			return 1;
+	}
+	else if(!strcmp(app_name, "python"))
+	{
+		if (python_avg_read_hit > hit_threshold)
+			return 1;
+	}
+	
+	return 0;
 }
 
 
