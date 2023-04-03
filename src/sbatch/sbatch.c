@@ -436,7 +436,6 @@ int main(int argc, char **argv)
 	printf("Job State: %s\n", job_state_string(job_ptr->job_state));
 	if(!strcmp("PENDING", job_state_string(job_ptr->job_state)) && \
 	!strcmp("FAILED", job_state_string(job_ptr->job_state))){
-		printf("kir\n");
 		slurm_kill_job(resp->job_id, SIGKILL, KILL_JOB_BATCH);
 		ds_store = fopen("jobid_dataset", "r");
 		/* Cache partition is not empty */
@@ -777,6 +776,8 @@ static int _fill_job_desc_from_opts(job_desc_msg_t *desc)
 	if (opt.dataset_size){
 		char tmp_part[1];
 		desc->dataset_size = opt.dataset_size;
+		printf("You have specified a data set size of %d GB for your application.\n"
+		, desc->dataset_size);
 		sprintf(tmp_part, "%.*s", 1, desc->partition);
 		if (check_if_dataset_famous(desc->dataset_name)){
 			if (strcmp("l", tmp_part)){
@@ -791,21 +792,19 @@ static int _fill_job_desc_from_opts(job_desc_msg_t *desc)
 				desc->partition = "base";
 			// io type is random, so we need to check hit threshold
 			else{
-				if (!check_app_hit_threshold(opt.job_name))
-					desc->partition = "cache";
-				else
-					desc->partition = "base";
+				if (!check_app_hit_threshold(opt.job_name)){
+					if (!strcmp("c", tmp_part))
+						;
+					else
+					{
+						// dataset specified with no cache partition. Change partition
+						printf("The partition in the script does not have cache. Switching to a cache partition...\n");
+						desc->partition = "cache";
+					}
+				}
+				//else
+				//	desc->partition = "base";
 			}
-		}
-		printf("You have specified a data set size of %d GB for your application.\n"
-		, desc->dataset_size);
-		if (!strcmp("c", tmp_part))
-		;
-		else
-		{
-			// dataset specified with no cache partition. Change partition
-			printf("The partition in the script does not have cache. Switching to a cache partition...\n");
-			desc->partition = "cache";
 		}
 	}
 	else
@@ -821,7 +820,7 @@ static int _fill_job_desc_from_opts(job_desc_msg_t *desc)
 		else ;
 	}
 	
-
+	printf("Latest: %s\n", desc->partition);
 	if (opt.licenses)
 		desc->licenses = xstrdup(opt.licenses);
 	if (opt.nodes_set) {
