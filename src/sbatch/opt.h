@@ -151,6 +151,10 @@ extern char *read_from_dataset_file(int current_dataset, char *job_name);
 extern int check_if_dataset_famous(char *);
 extern int check_app_name_io_type(char *);
 extern int check_app_hit_threshold(char *);
-extern int calculate_execution_time(int, char *);
+extern int calculate_execution_time(int, char *, char *);
+/* updates the new job on each partition (used for when the original partition is not empty) */
+extern void delete_previous_job(char *);
+extern char* earliest_finish_time(int, char*);
+extern bool check_part(char*);
 
 #endif	/* _HAVE_OPT_H */
