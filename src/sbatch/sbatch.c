@@ -134,18 +134,25 @@ int python_io_type = 0;	/* 1: seq, 0: rand */
 const double python_avg_read_hit = 0.5;
 int python_dataset_size = 500;
 int python_normalized_io = 1;
-/* FIO Rand */
-const double fio_rand_hit = 0.62;
-int fio_rand_average_exec_time = 1;
+/* FIO Rand zipf */
+const double fio_zipf_rand_hit = 0.91;
+int fio_zipf_rand_average_exec_time = 425; /* min */
+int fio_zipf_rand_io_type = 0;	/* 1: seq, 0: rand */
+const double fio_zipf_rand_avg_read_hit = 0.91;
+int fio_zipf_rand_dataset_size = 200;
+int fio_zipf_rand_normalized_io = 1;
+/* FIO Rand no zipf */
+const double fio_rand_hit = 0.18;
+int fio_rand_average_exec_time = 710;	/* min */
 int fio_rand_io_type = 0;	/* 1: seq, 0: rand */
-const double fio_rand_avg_read_hit = 0.82;
+const double fio_rand_avg_read_hit = 0.18;
 int fio_rand_dataset_size = 200;
 int fio_rand_normalized_io = 1;
 /* FIO Seq */
-const double fio_seq_hit = 0.18;
-int fio_seq_average_exec_time = 1;
+const double fio_seq_hit = 0.07;
+int fio_seq_average_exec_time = 91;	/* min */
 int fio_seq_io_type = 1;	/* 1: seq, 0: rand */
-const double fio_seq_avg_read_hit = 0.18;
+const double fio_seq_avg_read_hit = 0.07;
 int fio_seq_python_dataset_size = 200;
 int fio_seq_normalized_io = 1;
 
@@ -1668,7 +1675,19 @@ int check_app_name_io_type(char* job_name){
 		return opencv_io_type;
 	else if(!strcmp(app_name, "python"))
 		return python_io_type;
-	else if (!strcmp(app_name, "fio"))
+	else if(!strcmp(app_name, "fioseq"))
+	{
+		return fio_seq_io_type;
+	}
+	else if(!strcmp(app_name, "fiozipf"))
+	{
+		return fio_zipf_rand_io_type;
+	}
+	else if(!strcmp(app_name, "fio"))
+	{
+		return fio_rand_io_type;
+	}
+	/*else if (!strcmp(app_name, "fio"))
 	{
 		if (fio_count == 0){
 			fio_test = strtok(NULL, "_");
@@ -1676,7 +1695,7 @@ int check_app_name_io_type(char* job_name){
 			if (!strcmp(fio_test, "seq"))
 				return fio_seq_io_type;
 			else
-				return fio_rand_io_type;
+				return fio_zipf_rand_io_type;
 
 		}
 		else{
@@ -1684,10 +1703,10 @@ int check_app_name_io_type(char* job_name){
 			if (!strcmp(fio_test, "seq"))
 				return fio_seq_io_type;
 			else
-				return fio_rand_io_type;
+				return fio_zipf_rand_io_type;
 
 		}
-	}
+	}*/
 	else
 		return 0;
 }
@@ -1721,14 +1740,21 @@ int check_app_hit_threshold(char* job_name){
 			return 1;
 	}
 
+	else if(!strcmp(app_name, "fioseq"))
+	{
+		if (fio_seq_avg_read_hit > hit_threshold)
+			return 1;
+
+	}
+	else if(!strcmp(app_name, "fiozipf"))
+	{
+		if (fio_zipf_rand_avg_read_hit > hit_threshold)
+			return 1;
+	}
 	else if(!strcmp(app_name, "fio"))
 	{
-		if (!strcmp(fio_test, "seq"))
-			if (fio_seq_avg_read_hit > hit_threshold)
-				return 1;
-		else
-			if (fio_rand_avg_read_hit > hit_threshold)
-				return 1;
+		if (fio_rand_avg_read_hit > hit_threshold)
+			return 1;
 	}
 	
 	return 1;
@@ -1759,12 +1785,18 @@ int calculate_execution_time(int dataset, char* job, char* partition){
 	{
 		hit = python_avg_read_hit;
 	}
+	else if(!strcmp(app_name, "fioseq"))
+	{
+		hit = fio_seq_avg_read_hit;
+	}
+	else if(!strcmp(app_name, "fiozipf"))
+	{
+
+		hit = fio_zipf_rand_avg_read_hit;
+	}
 	else if(!strcmp(app_name, "fio"))
 	{
-		if (!strcmp(fio_test, "seq"))
-			hit = fio_seq_avg_read_hit;
-		else
-			hit = fio_rand_avg_read_hit;
+		hit = fio_rand_avg_read_hit;
 	}
 
 	if (!strcmp(partition, "base"))
