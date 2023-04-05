@@ -1,0 +1,3 @@
+Usage: /var/lib/slurm/slurmd/job00280/slurm_script [OPTION]... [MODE-ARG]...
+Try 'slurm_script --help' for more information.
+slurm_script:   error: you must specify a MODE

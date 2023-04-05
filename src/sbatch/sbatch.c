@@ -98,10 +98,10 @@ partition_info_msg_t *part_info_ptr = NULL; /* added by Sinashan */
 const double AVERAGE_HIT_RATIO = 0.5;
 const double SSD_BW = 500;	// MB/s
 const double HDD_BW = 800;	// MB/s
-const double SSD_IOPS = 95000;	// IO/s
-const double HDD_IOPS = 2000;	// IO/s
-const int SSD_BLK_SIZE = 4;	// KB
-const int HDD_BLK_SIZE = 0.5;	// KB
+const int SSD_IOPS = 95000;	// IO/s
+const int HDD_IOPS = 2000;	// IO/s
+const double SSD_BLK_SIZE = 4;	// KB
+const double HDD_BLK_SIZE = 0.5;	// KB
 const int CACHE_PART_SIZE = 500; // GB
 const uint32_t EXECUTION_TIME = 200;	// minutes fot 500 GB dataset size
 
@@ -109,7 +109,7 @@ const uint32_t EXECUTION_TIME = 200;	// minutes fot 500 GB dataset size
 /* Tensorflow */
 const double tensorflow_hit = 0.5;
 int tensorflow_average_exec_time = 1;
-int tensorflow_io_type = 0;	/* 1: seq, 0: rand */
+int tensorflow_io_type = 1;	/* 1: seq, 0: rand */
 const double tensorflow_avg_read_hit = 0.5;
 int tensorflow_dataset_size = 500;
 int tensorflow_normalized_io = 1;
@@ -123,8 +123,8 @@ int pytorch_normalized_io = 1;
 /* OpenCV */
 const double opencv_hit = 0.5;
 int opencv_average_exec_time = 1;
-int opencv_io_type = 0;	/* 1: seq, 0: rand */
-const double opencv_avg_read_hit = 0.5;
+int opencv_io_type = 1;	/* 1: seq, 0: rand */
+const double opencv_avg_read_hit = 0.9;
 int opencv_dataset_size = 500;
 int opencv_normalized_io = 1;
 /* Python */
@@ -134,11 +134,27 @@ int python_io_type = 0;	/* 1: seq, 0: rand */
 const double python_avg_read_hit = 0.5;
 int python_dataset_size = 500;
 int python_normalized_io = 1;
+/* FIO Rand */
+const double fio_rand_hit = 0.62;
+int fio_rand_average_exec_time = 1;
+int fio_rand_io_type = 0;	/* 1: seq, 0: rand */
+const double fio_rand_avg_read_hit = 0.82;
+int fio_rand_dataset_size = 200;
+int fio_rand_normalized_io = 1;
+/* FIO Seq */
+const double fio_seq_hit = 0.18;
+int fio_seq_average_exec_time = 1;
+int fio_seq_io_type = 1;	/* 1: seq, 0: rand */
+const double fio_seq_avg_read_hit = 0.18;
+int fio_seq_python_dataset_size = 200;
+int fio_seq_normalized_io = 1;
 
+int fio_count = 0;
+char* fio_test = "";
 
 /* used to take care of what the original partition in the script was */
 char* original_partition;
-
+char* original_job_name;
 
 /* Famous datasets */
 char* datasets[11] = {
@@ -170,6 +186,11 @@ int main(int argc, char **argv)
 	List job_env_list = NULL, job_req_list = NULL;
 	sbatch_env_t *local_env = NULL;
 	bool quiet = false;
+
+	/* added by Sinashan */
+	FILE *ds_store;
+	ds_store = fopen("jobid_dataset", "a");
+	fclose(ds_store);
 
 	slurm_job_info_t *job_ptr;	/* added by Sinashan */
 	job_info_msg_t *resps = NULL;	/* added by Sinashan */
@@ -422,7 +443,7 @@ int main(int argc, char **argv)
 		rc = _job_wait(resp->job_id);
 
 	/* added by Sinashan */
-	FILE *ds_store;
+	FILE *changed_partition;
 	uint32_t alternate_jobid;	// a job id in case the current one needs to be cancelled
 	int dataset_cache_not_execute=0;
 	sleep(2);
@@ -434,8 +455,7 @@ int main(int argc, char **argv)
 
 	//slurm_sprint_job_info(job_ptr, 0);
 	printf("Job State: %s\n", job_state_string(job_ptr->job_state));
-	if(!strcmp("PENDING", job_state_string(job_ptr->job_state)) && \
-	!strcmp("FAILED", job_state_string(job_ptr->job_state))){
+	if(!strcmp("FAILED", job_state_string(job_ptr->job_state))){
 		slurm_kill_job(resp->job_id, SIGKILL, KILL_JOB_BATCH);
 		ds_store = fopen("jobid_dataset", "r");
 		/* Cache partition is not empty */
@@ -544,8 +564,8 @@ int main(int argc, char **argv)
 		}		*/
 	} 
 	else{
-		delete_previous_job(desc->partition);
 		ds_store = fopen("jobid_dataset", "a");
+		changed_partition = fopen("changed_partition", "a");
 		dataset_cache_not_execute = 1;
 		int submitted_exeuction_time = 0;	/* when does the submitted job end? */
 		if (desc->dataset_size != -2){
@@ -555,7 +575,11 @@ int main(int argc, char **argv)
 		}
 		fprintf(ds_store, "%s\t%d\t%d\t%d\n", desc->partition, resp->job_id, desc->dataset_size, submitted_exeuction_time);
 		printf("Submitted batch job %u\n", resp->job_id);
+		/* partition changed? */
+		if (strcmp(desc->partition, opt.partition))
+			fprintf(changed_partition, "Job ID: %d\t%s -------> %s\n", resp->job_id, opt.partition, desc->partition);
 		fclose(ds_store);
+		fclose(changed_partition);
 	}
 
 	//printf("Start Time: %lld\n", (long long) job_ptr->start_time);
@@ -780,30 +804,57 @@ static int _fill_job_desc_from_opts(job_desc_msg_t *desc)
 		, desc->dataset_size);
 		sprintf(tmp_part, "%.*s", 1, desc->partition);
 		if (check_if_dataset_famous(desc->dataset_name)){
-			if (strcmp("l", tmp_part)){
-				printf("Famous dataset detected. Switching to local partition.\n");
-				desc->partition = "local";
+			if (!check_part("local")){
+				if (strcmp("l", tmp_part)){
+					printf("Famous dataset detected. Switching to local partition.\n");
+					desc->partition = "local";
+				}
+				else
+					printf("Famous dataset detected!\n");
 			}
-			else ;
+			else{
+				printf("Famous dataset detected, but local partition is busy.\n");
+				if (check_app_name_io_type(opt.job_name))
+					desc->partition = "base";
+				else{
+					if (check_app_hit_threshold(opt.job_name)){
+						if (!check_part("cache"))
+							desc->partition = "cache";
+						else{
+							/* EARLIEST FINISH TIME BE ADDED (FOR 3)  */
+							printf("EARLIEST FINISH TIME BE ADDED (FOR 3)\n");
+							desc->partition = earliest_finish_time(desc->dataset_size,\
+							desc->name);
+						}
+					}
+					else{
+						/* EARLIEST FINISH TIME BE ADDED FOR HDD and LOCAL SSD  */
+						printf("EARLIEST FINISH TIME BE ADDED FOR HDD and LOCAL SSD\n");
+						desc->partition = earliest_finish_time(desc->dataset_size,\
+							desc->name);
+					}
+				}
+			}
 		}
 		else{
+			printf("No famous dataset detected!\n");
 			// check if application name is sequential (1) or random (0)
 			if (check_app_name_io_type(opt.job_name))
 				desc->partition = "base";
 			// io type is random, so we need to check hit threshold
 			else{
-				if (!check_app_hit_threshold(opt.job_name)){
-					if (!strcmp("c", tmp_part))
-						;
-					else
-					{
-						// dataset specified with no cache partition. Change partition
-						printf("The partition in the script does not have cache. Switching to a cache partition...\n");
+				if (!check_app_hit_threshold(opt.job_name))
+					desc->partition = "base";
+				else{
+					if (!check_part("cache"))
 						desc->partition = "cache";
+					else{
+						/* EARLIEST FINISH TIME FOR HDD AND CACHE */
+						printf("EARLIEST FINISH TIME FOR HDD AND CACHE\n");
+						desc->partition = earliest_finish_time(desc->dataset_size,\
+							desc->name);
 					}
 				}
-				//else
-				//	desc->partition = "base";
 			}
 		}
 	}
@@ -814,13 +865,18 @@ static int _fill_job_desc_from_opts(job_desc_msg_t *desc)
 		if (!strcmp("c", tmp_part))
 		{
 			// cache partition specified with no dataset size. Change partition
-			printf("Cache partition specified with no dataset size. Switching to a base partition...\n");
+			printf("Cache partition specified with no dataset information. Switching to a base partition...\n");
+			desc->partition = "base";
+		}
+		else if (!strcmp("l", tmp_part))
+		{
+			// local partition specified with no dataset size. Change partition
+			printf("Local SSD partition specified with no dataset information. Switching to a base partition...\n");
 			desc->partition = "base";
 		}
 		else ;
 	}
 	
-	printf("Latest: %s\n", desc->partition);
 	if (opt.licenses)
 		desc->licenses = xstrdup(opt.licenses);
 	if (opt.nodes_set) {
@@ -1601,6 +1657,7 @@ int check_if_dataset_famous(char* ds_name){
 /* 0: random, 1: sequential */
 extern
 int check_app_name_io_type(char* job_name){
+	//printf("App name: %s\n", job_name);
 	char *app_name;
 	app_name = strtok(job_name, "_");
 	if (!strcmp(app_name, "tensorflow"))
@@ -1611,15 +1668,38 @@ int check_app_name_io_type(char* job_name){
 		return opencv_io_type;
 	else if(!strcmp(app_name, "python"))
 		return python_io_type;
+	else if (!strcmp(app_name, "fio"))
+	{
+		if (fio_count == 0){
+			fio_test = strtok(NULL, "_");
+			fio_count++;
+			if (!strcmp(fio_test, "seq"))
+				return fio_seq_io_type;
+			else
+				return fio_rand_io_type;
+
+		}
+		else{
+			fio_count = 0;
+			if (!strcmp(fio_test, "seq"))
+				return fio_seq_io_type;
+			else
+				return fio_rand_io_type;
+
+		}
+	}
 	else
 		return 0;
 }
 
+/* 0: smallert than threshold, 1: larger than threshold*/
 extern
 int check_app_hit_threshold(char* job_name){
+	//printf("App hit: %s\n", job_name);
 	char *app_name;
 	int hit_threshold = 0.8;
 	app_name = strtok(job_name, "_");
+
 	if (!strcmp(app_name, "tensorflow"))
 	{
 		if (tensorflow_avg_read_hit > hit_threshold)
@@ -1640,17 +1720,28 @@ int check_app_hit_threshold(char* job_name){
 		if (python_avg_read_hit > hit_threshold)
 			return 1;
 	}
+
+	else if(!strcmp(app_name, "fio"))
+	{
+		if (!strcmp(fio_test, "seq"))
+			if (fio_seq_avg_read_hit > hit_threshold)
+				return 1;
+		else
+			if (fio_rand_avg_read_hit > hit_threshold)
+				return 1;
+	}
 	
-	return 0;
+	return 1;
 }
 
 
 extern
 int calculate_execution_time(int dataset, char* job, char* partition){
+	//printf("Exec Time: %s\n", job);
 	char* app_name;
 	double hit = 0.5;
 	app_name = strtok(job, "_");
-	int rand_or_seq = check_app_name_io_type(app_name); // 0: rand, 1: seq
+	int rand_or_seq = check_app_name_io_type(job); // 0: rand, 1: seq
 
 	if (!strcmp(app_name, "tensorflow"))
 	{
@@ -1668,33 +1759,40 @@ int calculate_execution_time(int dataset, char* job, char* partition){
 	{
 		hit = python_avg_read_hit;
 	}
+	else if(!strcmp(app_name, "fio"))
+	{
+		if (!strcmp(fio_test, "seq"))
+			hit = fio_seq_avg_read_hit;
+		else
+			hit = fio_rand_avg_read_hit;
+	}
 
 	if (!strcmp(partition, "base"))
 	{
 		// random
 		if (rand_or_seq == 0)
-			return ((dataset * 1024 * 1024) / HDD_BLK_SIZE) / HDD_IOPS;
+			return (int) (((dataset * 1024 * 1024) / HDD_BLK_SIZE) / HDD_IOPS);
 		// sequential
-		else
-			return (dataset * 1024) / HDD_BW;
+		else;
+			return (int) ((dataset * 1024) / HDD_BW);
 	}
 	else if (!strcmp(partition, "cache"))
 	{
 		// random
 		if (rand_or_seq == 0)
-			return ((hit * dataset * 1024 * 1024) / SSD_BLK_SIZE) / SSD_IOPS;
+			return (int) (((hit * dataset * 1024 * 1024) / SSD_BLK_SIZE) / SSD_IOPS);
 		// sequential
 		else
-			return (hit * dataset * 1024) / SSD_BW;
+			return (int) ((hit * dataset * 1024) / SSD_BW);
 	}
 	else if (!strcmp(partition, "local"))
 	{
 		// random
 		if (rand_or_seq == 0)
-			return ((dataset * 1024 * 1024) / SSD_BLK_SIZE) / SSD_IOPS;
+			return (int) (((dataset * 1024 * 1024) / SSD_BLK_SIZE) / SSD_IOPS);
 		// sequential
 		else
-			return (dataset * 1024) / SSD_BW;
+			return (int) ((dataset * 1024) / SSD_BW);
 	}
 
 }
@@ -1744,15 +1842,15 @@ char* earliest_finish_time(int dataset, char* job){
 	if (ds_store == NULL)
         return;
 	
-	uint32_t min_finish_time =  ((uint32_t) time(NULL)) * 2;
+	uint32_t min_finish_time =  ((uint32_t) time(NULL)) + 604800;
 	int count = 0;
 	int base_exec_time, cache_exec_time, local_exec_time;
 	base_exec_time = calculate_execution_time(dataset, job, "base");
 	cache_exec_time = calculate_execution_time(dataset, job, "cache");
 	local_exec_time = calculate_execution_time(dataset, job, "local");
-	printf("Base: %d\n", base_exec_time);
-	printf("Cache: %d\n", cache_exec_time);
-	printf("Local: %d\n", local_exec_time);
+	//printf("Base: %d\n", base_exec_time);
+	//printf("Cache: %d\n", cache_exec_time);
+	//printf("Local: %d\n", local_exec_time);
 	while (read = getline(&line, &len, ds_store) != -1){
 		line = strtok(line, "\t");
 		early_partition = line;
@@ -1782,12 +1880,15 @@ char* earliest_finish_time(int dataset, char* job){
 }
 
 
+/* false: partition empty, true: partition busy */
 extern
 bool check_part(char* partition){
 	FILE* ds_store;
 	char * line = NULL;
 	size_t len = 0;
 	ssize_t read;
+	
+	ds_store = fopen("jobid_dataset", "r");
 
 	while (read = getline(&line, &len, ds_store) != -1){
 		line = strtok(line, "\t");
