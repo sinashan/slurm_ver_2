@@ -1723,38 +1723,51 @@ int check_app_hit_threshold(char* job_name){
 	{
 		if (tensorflow_avg_read_hit > hit_threshold)
 			return 1;
+		else
+			return 0;
 	}
 	else if(!strcmp(app_name, "pytorch"))
 	{
 		if (pytorch_avg_read_hit > hit_threshold)
 			return 1;
+		else
+			return 0;
 	}
 	else if(!strcmp(app_name, "opencv"))
 	{
 		if (opencv_avg_read_hit > hit_threshold)
 			return 1;
+		else
+			return 0;
+	
 	}
 	else if(!strcmp(app_name, "python"))
 	{
 		if (python_avg_read_hit > hit_threshold)
 			return 1;
+		else
+			return 0;
 	}
-
 	else if(!strcmp(app_name, "fioseq"))
 	{
 		if (fio_seq_avg_read_hit > hit_threshold)
 			return 1;
-
+		else
+			return 0;
 	}
 	else if(!strcmp(app_name, "fiozipf"))
 	{
 		if (fio_zipf_rand_avg_read_hit > hit_threshold)
 			return 1;
+		else
+			return 0;
 	}
 	else if(!strcmp(app_name, "fio"))
 	{
 		if (fio_rand_avg_read_hit > hit_threshold)
 			return 1;
+		else
+			return 0;
 	}
 	
 	return 1;
