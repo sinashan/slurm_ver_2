@@ -1716,7 +1716,7 @@ extern
 int check_app_hit_threshold(char* job_name){
 	//printf("App hit: %s\n", job_name);
 	char *app_name;
-	int hit_threshold = 0.8;
+	double hit_threshold = 0.8;
 	app_name = strtok(job_name, "_");
 
 	if (!strcmp(app_name, "tensorflow"))
