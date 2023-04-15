@@ -571,22 +571,23 @@ int main(int argc, char **argv)
 		}		*/
 	} 
 	else{
-		ds_store = fopen("jobid_dataset", "a");
-		changed_partition = fopen("changed_partition", "a");
 		dataset_cache_not_execute = 1;
+		changed_partition = fopen("changed_partition", "a");
 		int submitted_exeuction_time = 0;	/* when does the submitted job end? */
 		if (desc->dataset_size != -2){
 			submitted_exeuction_time = 
 				calculate_execution_time(desc->dataset_size, job_ptr->name, desc->partition) +
 				(int) job_ptr->submit_time;
 		}
+		delete_previous_job(desc->partition);
+		ds_store = fopen("jobid_dataset", "a");
 		fprintf(ds_store, "%s\t%d\t%d\t%d\n", desc->partition, resp->job_id, desc->dataset_size, submitted_exeuction_time);
 		printf("Submitted batch job %u\n", resp->job_id);
 		/* partition changed? */
 		if (strcmp(desc->partition, opt.partition))
 			fprintf(changed_partition, "Job ID: %d\t%s -------> %s\n", resp->job_id, opt.partition, desc->partition);
-		fclose(ds_store);
 		fclose(changed_partition);
+		fclose(ds_store);
 	}
 
 	//printf("Start Time: %lld\n", (long long) job_ptr->start_time);
@@ -1843,6 +1844,7 @@ int calculate_execution_time(int dataset, char* job, char* partition){
 }
 
 
+/* deletes previous job on a specific partition so that each partition has only one row */
 extern 
 void delete_previous_job(char* partition){
 	FILE *ds_store;
@@ -1850,26 +1852,27 @@ void delete_previous_job(char* partition){
 	char * line = NULL;
     size_t len = 0;
     ssize_t read;
-	int line_count = 0; // counts which line should be deletd
+	int line_count = 0; // counts which line should be deleted
 	ds_store = fopen("jobid_dataset", "r");
 
 	if (ds_store == NULL)
         return;
-
-	tmp = fopen("temp", "a");
+	
+	tmp = fopen("temp", "w");
     while ((read = getline(&line, &len, ds_store)) != -1) {
         if (strstr(line, partition) == NULL){
 			fprintf(tmp, "%s", line);
 		}
     }
 
-	fclose(tmp);
 	remove("jobid_dataset");
 	rename("temp", "jobid_dataset");
 
+	fclose(tmp);
 	fclose(ds_store);
 }
 
+/* selectes the partition with the earliest finish time (according to the flowchart) */
 extern 
 char* earliest_finish_time(int dataset, char* job){
 	FILE *ds_store;
