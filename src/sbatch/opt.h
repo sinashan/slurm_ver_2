@@ -155,6 +155,6 @@ extern int calculate_execution_time(int, char *, char *);
 /* updates the new job on each partition (used for when the original partition is not empty) */
 extern void delete_previous_job(char *);
 extern char* earliest_finish_time(int, char*);
-extern bool check_part(char*);
+extern bool check_part_busy(char*);
 
 #endif	/* _HAVE_OPT_H */
