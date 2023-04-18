@@ -94,7 +94,7 @@ int all_flag = 0;	/* display even hidden partitions (added by sinashan) */
 partition_info_t *part_ptr = NULL; /* added by Sinashan */
 partition_info_msg_t *part_info_ptr = NULL; /* added by Sinashan */
 
-/* added by Sinashan */
+/* added by Sinashan. General info about the setup */
 const double AVERAGE_HIT_RATIO = 0.5;
 const double SSD_BW = 500;	// MB/s
 const double HDD_BW = 800;	// MB/s
@@ -450,19 +450,22 @@ int main(int argc, char **argv)
 		rc = _job_wait(resp->job_id);
 
 	/* added by Sinashan */
-	FILE *changed_partition;
-	uint32_t alternate_jobid;	// a job id in case the current one needs to be cancelled
-	int dataset_cache_not_execute=0;
-	sleep(2);
-	slurm_load_job(&resps, resp->job_id, 0);
-	job_ptr = resps->job_array;
-	alternate_jobid = job_ptr->job_id + 1;
-	scontrol_print_part(NULL);
+	FILE *changed_partition;	/* keeps track of which job ID was repartitioned */
+	uint32_t alternate_jobid;	/* a job id in case the current one needs to be cancelled */
+	int dataset_cache_not_execute=0;	/* not needed for now */
+	sleep(2);	/* this sleep is needed to make sure sbatch takes effect */
+	slurm_load_job(&resps, resp->job_id, 0);	/* loads job info */
+	job_ptr = resps->job_array;	/* get job info */
+	alternate_jobid = job_ptr->job_id + 1;	/* in case the current job needs to be cancelled */
+	scontrol_print_part(NULL);	/* slurm function to fill the job info structure */
 	
 
 	//slurm_sprint_job_info(job_ptr, 0);
 	printf("Job State: %s\n", job_state_string(job_ptr->job_state));
+
+	/* job states: RUNNING, PENDING, FAILED (something was wrong) */
 	if(!strcmp("FAILED", job_state_string(job_ptr->job_state))){
+		/* slurm function to kill the job, takes job ID as argument */
 		slurm_kill_job(resp->job_id, SIGKILL, KILL_JOB_BATCH);
 		ds_store = fopen("jobid_dataset", "r");
 		/* Cache partition is not empty */
@@ -472,7 +475,7 @@ int main(int argc, char **argv)
 				int cache_exec_time = calculate_execution_time(desc->dataset_size, job_ptr->name, desc->partition);
 				/* between HDD, cache, and local SSD */
 				if (check_app_hit_threshold(opt.job_name)){
-					if (!check_part("cache"))
+					if (!check_part_busy("cache"))
 						desc->partition = "cache";
 					else
 						desc->partition = earliest_finish_time(desc->dataset_size, job_ptr->name);
@@ -489,7 +492,7 @@ int main(int argc, char **argv)
 			else{
 				if (check_app_hit_threshold(opt.job_name)){
 					/* cache is empty */
-					if (!check_part("cache"))
+					if (!check_part_busy("cache"))
 						desc->partition = "cache";
 					/* cache is not empty */
 					else
@@ -514,7 +517,7 @@ int main(int argc, char **argv)
 			else{
 				if (check_app_hit_threshold(opt.job_name)){
 					/* check if cache is empty */
-					if (!check_part("cache"))
+					if (!check_part_busy("cache"))
 						desc->partition = "cache";
 					else
 						desc->partition = earliest_finish_time(desc->dataset_size, job_ptr->name);				
@@ -570,6 +573,8 @@ int main(int argc, char **argv)
 			}
 		}		*/
 	} 
+	
+	/* the else part gets executed if a job submission was successful */
 	else{
 		dataset_cache_not_execute = 1;
 		changed_partition = fopen("changed_partition", "a");
@@ -579,7 +584,7 @@ int main(int argc, char **argv)
 				calculate_execution_time(desc->dataset_size, job_ptr->name, desc->partition) +
 				(int) job_ptr->submit_time;
 		}
-		delete_previous_job(desc->partition);
+		//delete_previous_job(desc->partition);
 		ds_store = fopen("jobid_dataset", "a");
 		fprintf(ds_store, "%s\t%d\t%d\t%d\n", desc->partition, resp->job_id, desc->dataset_size, submitted_exeuction_time);
 		printf("Submitted batch job %u\n", resp->job_id);
@@ -594,7 +599,7 @@ int main(int argc, char **argv)
 	//printf("Eligible Time: %lld\n", (long long) job_ptr->start_time);
 	//printf("End Time: %lld\n", (long long) job_ptr->end_time);
 
-	if (dataset_cache_not_execute == 0 && desc->dataset_size > 0)
+	/*if (dataset_cache_not_execute == 0 && desc->dataset_size > 0)
 	{
 		FILE *not_executed;
 		not_executed = fopen("not_executed", "a");
@@ -606,7 +611,7 @@ int main(int argc, char **argv)
 		slurm_submit_batch_job(desc, resp);
 		alternate_jobid++;
 		printf("Job submitted to the queue of %s partition with the shortest exeuction time.\n", new_partition);
-	}
+	}*/
 
 
 
@@ -773,6 +778,7 @@ static void _env_merge_filter(job_desc_msg_t *desc)
 }
 
 /* Returns 0 on success, -1 on failure */
+/* this function fills the structure by reading from the script file */
 static int _fill_job_desc_from_opts(job_desc_msg_t *desc)
 {
 	int i;
@@ -793,9 +799,11 @@ static int _fill_job_desc_from_opts(job_desc_msg_t *desc)
 	desc->exc_nodes = xstrdup(opt.exclude);
 	desc->partition = xstrdup(opt.partition);
 	desc->profile = opt.profile;
-	desc->dataset_name = xstrdup(opt.dataset_name);
-	original_partition = opt.partition;
+	desc->dataset_name = xstrdup(opt.dataset_name);	/* reads dataset name */
+	original_partition = opt.partition;	/* this keeps track of what the original partition was */
 
+	/* here, we check if dataset name and dataset size have been specified.
+		in case one was specified and the other not, we throw an error */
 	if (!opt.dataset_size && desc->dataset_name != NULL){
 		printf("You have dataset name in your script. Please also specify dataset size\n");
 		return -1;
@@ -804,46 +812,59 @@ static int _fill_job_desc_from_opts(job_desc_msg_t *desc)
 		printf("You have dataset size in your script. Please also specify dataset name\n");
 		return -1;
 	}
-	/* added by Sinashan (change partition if needed) */
+	/* change partition if needed */
+	/* when a dataset size has been specified */
 	if (opt.dataset_size){
 		char tmp_part[1];
-		desc->dataset_size = opt.dataset_size;
+		desc->dataset_size = opt.dataset_size;	/* set dataset size */
 		printf("You have specified a data set size of %d GB for your application.\n"
 		, desc->dataset_size);
-		sprintf(tmp_part, "%.*s", 1, desc->partition);
+		sprintf(tmp_part, "%.*s", 1, desc->partition);	/* this function gets the first letter of the selected partition (for comparison purposes)*/
+		/* check to see if the dataset name is a famous one */
 		if (check_if_dataset_famous(desc->dataset_name)){
-			if (!check_part("local")){
+			/* check if the intended partition is empty */
+			if (!check_part_busy("local")){
+				/* strcmp checks to see if two strings are equal. If equal, it returns NULL */
 				if (strcmp("l", tmp_part)){
 					printf("Famous dataset detected. Switching to local partition.\n");
 					desc->partition = "local";
 				}
+				/* famous dataset detected and the partition specified by use was the correct one */
 				else
 					printf("Famous dataset detected!\n");
 			}
+			/* the intended partition is not empty */
 			else{
 				printf("Famous dataset detected, but local partition is busy.\n");
+				/* passes job name to see if its I/O type is random or sequential */
+				/* if I/O type is sequential */
 				if (check_app_name_io_type(opt.job_name))
 					desc->partition = "base";
+				/* if I/O type is random */
 				else{
+					/* checks to see if the application hit rate is bigger than the 
+					threshold */
 					if (check_app_hit_threshold(opt.job_name)){
-						if (!check_part("cache"))
+						if (!check_part_busy("cache"))
 							desc->partition = "cache";
 						else{
-							/* EARLIEST FINISH TIME BE ADDED (FOR 3)  */
-							printf("EARLIEST FINISH TIME BE ADDED (FOR 3)\n");
+							/* EARLIEST FINISH TIME FOR 3 PARTITION TYPES  */
+							printf("EARLIEST FINISH TIME FOR 3 PARTITION TYPES \n");
 							desc->partition = earliest_finish_time(desc->dataset_size,\
 							desc->name);
 						}
 					}
+					/* application hit rate is below the threshold */
 					else{
 						/* EARLIEST FINISH TIME BE ADDED FOR HDD and LOCAL SSD  */
-						printf("EARLIEST FINISH TIME BE ADDED FOR HDD and LOCAL SSD\n");
+						printf("EARLIEST FINISH TIME BETWEEN HDD and LOCAL SSD\n");
 						desc->partition = earliest_finish_time(desc->dataset_size,\
 							desc->name);
 					}
 				}
 			}
 		}
+		/* dataset is not famous */
 		else{
 			printf("No famous dataset detected!\n");
 			// check if application name is sequential (1) or random (0)
@@ -854,7 +875,7 @@ static int _fill_job_desc_from_opts(job_desc_msg_t *desc)
 				if (!check_app_hit_threshold(opt.job_name))
 					desc->partition = "base";
 				else{
-					if (!check_part("cache"))
+					if (!check_part_busy("cache"))
 						desc->partition = "cache";
 					else{
 						/* EARLIEST FINISH TIME FOR HDD AND CACHE */
@@ -1483,6 +1504,7 @@ scontrol_print_part (char *partition_name)
 
 
 /* added by Sinashan */ 
+/* this function is not called as of now */
 extern 
 char *read_from_dataset_file(int current_dataset, char *job_name)
 {
@@ -1651,6 +1673,8 @@ char *read_from_dataset_file(int current_dataset, char *job_name)
 	else return cache_part_name;
 }
 
+/* iterates insie the list of famous datasets to see if the dataset name user sepcified
+in the script belongs to one of the list */
 extern
 int check_if_dataset_famous(char* ds_name){
 	int famous = 0;
@@ -1775,6 +1799,7 @@ int check_app_hit_threshold(char* job_name){
 }
 
 
+/* called by earliest_finish_time() to calculate exeuction time on each partition */
 extern
 int calculate_execution_time(int dataset, char* job, char* partition){
 	//printf("Exec Time: %s\n", job);
@@ -1930,7 +1955,7 @@ char* earliest_finish_time(int dataset, char* job){
 
 /* false: partition empty, true: partition busy */
 extern
-bool check_part(char* partition){
+bool check_part_busy(char* partition){
 	FILE* ds_store;
 	char * line = NULL;
 	size_t len = 0;
