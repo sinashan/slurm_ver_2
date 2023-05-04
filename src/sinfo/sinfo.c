@@ -109,6 +109,7 @@ static void _update_sinfo(sinfo_data_t *sinfo_ptr, node_info_t *node_ptr);
 
 int main(int argc, char **argv)
 {
+	printf("Salam\n");
 	log_options_t opts = LOG_OPTS_STDERR_ONLY;
 	int rc = 0;
 

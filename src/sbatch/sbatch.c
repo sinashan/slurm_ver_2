@@ -70,6 +70,8 @@
 #include "src/common/strlcpy.h"
 #include "src/common/uid.h"
 
+#include "src/scontrol/scontrol.h"
+
 #define MAX_RETRIES 15
 #define MAX_WAIT_SLEEP_TIME 32
 
@@ -93,6 +95,7 @@ partition_info_msg_t *old_part_info_ptr = NULL; /* (added by sinashan)  */
 int all_flag = 0;	/* display even hidden partitions (added by sinashan) */
 partition_info_t *part_ptr = NULL; /* added by Sinashan */
 partition_info_msg_t *part_info_ptr = NULL; /* added by Sinashan */
+
 
 /* added by Sinashan. General info about the setup */
 const double AVERAGE_HIT_RATIO = 0.5;
@@ -163,6 +166,13 @@ char* fio_test = "";
 char* original_partition;
 char* original_job_name;
 
+/* how many base (SAN_HDD) partitions are we going to have? */
+int number_of_base_parts = 1;
+int number_of_cache_parts = 1;
+int number_of_local_parts = 1;
+
+char* parts_status[100][2][256];
+
 /* Famous datasets */
 char* datasets[11] = {
 	"COCO",
@@ -193,6 +203,20 @@ int main(int argc, char **argv)
 	List job_env_list = NULL, job_req_list = NULL;
 	sbatch_env_t *local_env = NULL;
 	bool quiet = false;
+
+	/* create an array for the base partitions */
+	char **base_parts = malloc(number_of_base_parts * sizeof(char*));
+
+	for (int i = 0; i < number_of_base_parts; i++){
+		char *temp = malloc(10 * sizeof(char));
+		if (i == 0)
+			base_parts[i] = "base";
+		else{
+			sprintf(temp, "base%d", i);
+			base_parts[i] = temp;
+		}
+	}
+
 
 	/* added by Sinashan */
 	FILE *ds_store;
@@ -458,7 +482,8 @@ int main(int argc, char **argv)
 	job_ptr = resps->job_array;	/* get job info */
 	alternate_jobid = job_ptr->job_id + 1;	/* in case the current job needs to be cancelled */
 	scontrol_print_part(NULL);	/* slurm function to fill the job info structure */
-	
+        
+
 
 	//slurm_sprint_job_info(job_ptr, 0);
 	printf("Job State: %s\n", job_state_string(job_ptr->job_state));
@@ -468,68 +493,6 @@ int main(int argc, char **argv)
 		/* slurm function to kill the job, takes job ID as argument */
 		slurm_kill_job(resp->job_id, SIGKILL, KILL_JOB_BATCH);
 		ds_store = fopen("jobid_dataset", "r");
-		/* Cache partition is not empty */
-		if (!strcmp(original_partition, "cache")){
-			/* dataset is famous */
-			if (check_if_dataset_famous(desc->dataset_name)){
-				int cache_exec_time = calculate_execution_time(desc->dataset_size, job_ptr->name, desc->partition);
-				/* between HDD, cache, and local SSD */
-				if (check_app_hit_threshold(opt.job_name)){
-					if (!check_part_busy("cache"))
-						desc->partition = "cache";
-					else
-						desc->partition = earliest_finish_time(desc->dataset_size, job_ptr->name);
-				}
-				/* between HDD and local SSD */
-				else{
-					if (!strcmp(earliest_finish_time(desc->dataset_size, job_ptr->name), "base"))
-						desc->partition = "base";
-					else
-						desc->partition = "local";
-				}
-			}
-			/* between HDD and cache (dataset is not famous) */
-			else{
-				if (check_app_hit_threshold(opt.job_name)){
-					/* cache is empty */
-					if (!check_part_busy("cache"))
-						desc->partition = "cache";
-					/* cache is not empty */
-					else
-						if (!strcmp(earliest_finish_time(desc->dataset_size, job_ptr->name), "base"))
-							desc->partition = "base";
-						else
-							desc->partition = "cache";
-				}
-				/* run on HDD */
-				else{
-					desc->partition = "base";
-				}
-				
-			}
-		}
-		/* Local partition is not empty */
-		else if (!strcmp(original_partition, "local")){
-			/* sequential */
-			if (check_app_name_io_type(job_ptr->name))
-				desc->partition = "base";
-			/* random */
-			else{
-				if (check_app_hit_threshold(opt.job_name)){
-					/* check if cache is empty */
-					if (!check_part_busy("cache"))
-						desc->partition = "cache";
-					else
-						desc->partition = earliest_finish_time(desc->dataset_size, job_ptr->name);				
-				}
-				else{
-					desc->partition = earliest_finish_time(desc->dataset_size, job_ptr->name);
-				}
-			}
-
-		}
-
-		slurm_submit_batch_job(desc, resp);
 		/*char* temp_part = job_ptr->partition;
 		printf("Partition %s cannot be used because it's full.\n", job_ptr->partition);
 		slurm_kill_job(resp->job_id, SIGKILL, KILL_JOB_BATCH);
@@ -815,77 +778,31 @@ static int _fill_job_desc_from_opts(job_desc_msg_t *desc)
 	/* change partition if needed */
 	/* when a dataset size has been specified */
 	if (opt.dataset_size){
+		check_parts_status();	/* get the most recent status of partitions */
 		char tmp_part[1];
 		desc->dataset_size = opt.dataset_size;	/* set dataset size */
-		printf("You have specified a data set size of %d GB for your application.\n"
-		, desc->dataset_size);
 		sprintf(tmp_part, "%.*s", 1, desc->partition);	/* this function gets the first letter of the selected partition (for comparison purposes)*/
-		/* check to see if the dataset name is a famous one */
-		if (check_if_dataset_famous(desc->dataset_name)){
-			/* check if the intended partition is empty */
-			if (!check_part_busy("local")){
-				/* strcmp checks to see if two strings are equal. If equal, it returns NULL */
-				if (strcmp("l", tmp_part)){
-					printf("Famous dataset detected. Switching to local partition.\n");
-					desc->partition = "local";
-				}
-				/* famous dataset detected and the partition specified by use was the correct one */
-				else
-					printf("Famous dataset detected!\n");
+		/* I/O intensive application */
+		if (desc->dataset_size > 50){
+			printf("Your application is I/O intensive, with a data set size of %d GB for your application.\n"
+				, desc->dataset_size);
+			/* if dataset is popular */
+			if (check_if_dataset_famous(desc->dataset_name)){
+				desc->partition = "local";
 			}
-			/* the intended partition is not empty */
+			/* if dataset is not popular*/
 			else{
-				printf("Famous dataset detected, but local partition is busy.\n");
-				/* passes job name to see if its I/O type is random or sequential */
-				/* if I/O type is sequential */
-				if (check_app_name_io_type(opt.job_name))
-					desc->partition = "base";
-				/* if I/O type is random */
-				else{
-					/* checks to see if the application hit rate is bigger than the 
-					threshold */
-					if (check_app_hit_threshold(opt.job_name)){
-						if (!check_part_busy("cache"))
-							desc->partition = "cache";
-						else{
-							/* EARLIEST FINISH TIME FOR 3 PARTITION TYPES  */
-							printf("EARLIEST FINISH TIME FOR 3 PARTITION TYPES \n");
-							desc->partition = earliest_finish_time(desc->dataset_size,\
-							desc->name);
-						}
-					}
-					/* application hit rate is below the threshold */
-					else{
-						/* EARLIEST FINISH TIME BE ADDED FOR HDD and LOCAL SSD  */
-						printf("EARLIEST FINISH TIME BETWEEN HDD and LOCAL SSD\n");
-						desc->partition = earliest_finish_time(desc->dataset_size,\
-							desc->name);
-					}
-				}
+				desc->partition = select_part(1);
 			}
 		}
-		/* dataset is not famous */
+		/* not I/O intensive application */
 		else{
-			printf("No famous dataset detected!\n");
-			// check if application name is sequential (1) or random (0)
-			if (check_app_name_io_type(opt.job_name))
-				desc->partition = "base";
-			// io type is random, so we need to check hit threshold
-			else{
-				if (!check_app_hit_threshold(opt.job_name))
-					desc->partition = "base";
-				else{
-					if (!check_part_busy("cache"))
-						desc->partition = "cache";
-					else{
-						/* EARLIEST FINISH TIME FOR HDD AND CACHE */
-						printf("EARLIEST FINISH TIME FOR HDD AND CACHE\n");
-						desc->partition = earliest_finish_time(desc->dataset_size,\
-							desc->name);
-					}
-				}
-			}
+			printf("Your application is not I/O intensive, with a data set size of %d GB for your application.\n"
+				, desc->dataset_size);
+			
+			desc->partition = select_part(0);
 		}
+		
 	}
 	else
 	{
@@ -1484,7 +1401,7 @@ scontrol_print_part (char *partition_name)
 		    xstrcmp (partition_name, part_ptr[i].name) != 0)
 			continue;
 		print_cnt++;
-		//printf("Partition Name: %s\nNode Name: %s\n", part_ptr[i].name, part_ptr[i].nodes);
+		//printf("Partition Name: %s\nPartition State: %d\n", part_ptr[i].name, part_ptr[i].state_up);
 		//slurm_print_partition_info (stdout, & part_ptr[i],
 		//                            one_liner ) ;
 		if (partition_name)
@@ -1955,19 +1872,62 @@ char* earliest_finish_time(int dataset, char* job){
 
 /* false: partition empty, true: partition busy */
 extern
-bool check_part_busy(char* partition){
-	FILE* ds_store;
-	char * line = NULL;
-	size_t len = 0;
-	ssize_t read;
-	
-	ds_store = fopen("jobid_dataset", "r");
-
-	while (read = getline(&line, &len, ds_store) != -1){
-		line = strtok(line, "\t");
-		if (!strcmp(line, partition))
-			return true;
+char* select_part(int io_intensive){
+	char* selected_partition = "NULL";
+	if (io_intensive){
+		for (int i = 1; i < number_of_base_parts + 1; i++){
+				if (!strcmp(parts_status[i][1], "idle"))
+					selected_partition = parts_status[i][0];
+		}
+		if (!strcmp(selected_partition, "NULL"))
+			if (!strcmp(parts_status[number_of_base_parts+1][1], "idle"))
+				selected_partition = "cache";
+			else
+				selected_partition = "base";
+	}
+	else if (!io_intensive){
+		if (!strcmp(parts_status[number_of_base_parts+1][1], "idle"))
+			selected_partition = parts_status[number_of_base_parts+1][0];
+		else
+			for (int i = 1; i < number_of_base_parts + 1; i++){
+				if (!strcmp(parts_status[i][1], "idle"))
+					selected_partition = parts_status[i][0];
+			}
+		if (!strcmp(selected_partition, "NULL"))
+			selected_partition = "cache";
 	}
 
-	return false;
+	return selected_partition;
+}
+
+
+extern
+char* check_parts_status(){
+	FILE *fp;
+    char command[] = "sinfo | awk 'NR>1 {print $1, $5}'";
+    char line[256];
+    int row = 0, col = 0;
+
+    fp = popen(command, "r");
+    if (fp == NULL) {
+        printf("Failed to execute command\n");
+        return 1;
+    }
+
+    while (fgets(line, 256, fp) != NULL) {
+        char *token = strtok(line, " \t\n");
+        while (token != NULL) {
+            char *star = strchr(token, '*');
+            if (star != NULL) {
+                *star = '\0';
+            }
+            strcpy(parts_status[row][col], token);
+            token = strtok(NULL, " \t\n");
+            col++;
+        }
+        col = 0;
+        row++;
+    }
+
+    pclose(fp);
 }
