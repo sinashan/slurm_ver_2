@@ -765,16 +765,6 @@ static int _fill_job_desc_from_opts(job_desc_msg_t *desc)
 	desc->dataset_name = xstrdup(opt.dataset_name);	/* reads dataset name */
 	original_partition = opt.partition;	/* this keeps track of what the original partition was */
 
-	/* here, we check if dataset name and dataset size have been specified.
-		in case one was specified and the other not, we throw an error */
-	if (!opt.dataset_size && desc->dataset_name != NULL){
-		printf("You have dataset name in your script. Please also specify dataset size\n");
-		return -1;
-	}
-	else if (opt.dataset_size && desc->dataset_name == NULL){
-		printf("You have dataset size in your script. Please also specify dataset name\n");
-		return -1;
-	}
 	/* change partition if needed */
 	/* when a dataset size has been specified */
 	if (opt.dataset_size){
@@ -786,20 +776,21 @@ static int _fill_job_desc_from_opts(job_desc_msg_t *desc)
 		if (desc->dataset_size > 50){
 			printf("Your application is I/O intensive, with a data set size of %d GB for your application.\n"
 				, desc->dataset_size);
-			/* if dataset is popular */
-			if (check_if_dataset_famous(desc->dataset_name)){
-				desc->partition = "local";
+			if (desc->dataset_name != NULL){
+				/* if dataset is popular */
+				if (check_if_dataset_famous(desc->dataset_name))
+					desc->partition = "local";
+				else	
+					desc->partition = select_part(1);
 			}
-			/* if dataset is not popular*/
-			else{
+			else
 				desc->partition = select_part(1);
-			}
 		}
 		/* not I/O intensive application */
 		else{
-			printf("Your application is not I/O intensive, with a data set size of %d GB for your application.\n"
+			printf("Your application is CPU intensive, with a data set size of %d GB for your application.\n"
 				, desc->dataset_size);
-			
+
 			desc->partition = select_part(0);
 		}
 		
@@ -1875,9 +1866,13 @@ extern
 char* select_part(int io_intensive){
 	char* selected_partition = "NULL";
 	if (io_intensive){
-		for (int i = 1; i < number_of_base_parts + 1; i++){
-				if (!strcmp(parts_status[i][1], "idle"))
-					selected_partition = parts_status[i][0];
+		if (!strcmp(parts_status[number_of_base_parts+1][1], "idle"))
+				selected_partition = "cache";
+		else{
+			for (int i = 1; i < number_of_base_parts + 1; i++){
+					if (!strcmp(parts_status[i][1], "idle"))
+						selected_partition = parts_status[i][0];
+			}
 		}
 		if (!strcmp(selected_partition, "NULL"))
 			if (!strcmp(parts_status[number_of_base_parts+1][1], "idle"))
