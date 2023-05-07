@@ -768,7 +768,6 @@ static int _fill_job_desc_from_opts(job_desc_msg_t *desc)
 	/* change partition if needed */
 	/* when a dataset size has been specified */
 	if (opt.dataset_size){
-		check_parts_status();	/* get the most recent status of partitions */
 		char tmp_part[1];
 		desc->dataset_size = opt.dataset_size;	/* set dataset size */
 		sprintf(tmp_part, "%.*s", 1, desc->partition);	/* this function gets the first letter of the selected partition (for comparison purposes)*/
@@ -1865,6 +1864,7 @@ char* earliest_finish_time(int dataset, char* job){
 extern
 char* select_part(int io_intensive){
 	char* selected_partition = "NULL";
+	check_parts_status();	/* get the most recent status of partitions */
 	if (io_intensive){
 		if (!strcmp(parts_status[number_of_base_parts+1][1], "idle"))
 				selected_partition = "cache";
@@ -1881,15 +1881,15 @@ char* select_part(int io_intensive){
 				selected_partition = "base";
 	}
 	else if (!io_intensive){
-		if (!strcmp(parts_status[number_of_base_parts+1][1], "idle"))
-			selected_partition = parts_status[number_of_base_parts+1][0];
-		else
-			for (int i = 1; i < number_of_base_parts + 1; i++){
-				if (!strcmp(parts_status[i][1], "idle"))
-					selected_partition = parts_status[i][0];
-			}
+		for (int i = 1; i < number_of_base_parts + 1; i++){
+			if (!strcmp(parts_status[i][1], "idle"))
+				selected_partition = parts_status[i][0];
+		}
 		if (!strcmp(selected_partition, "NULL"))
-			selected_partition = "cache";
+			if (!strcmp(parts_status[number_of_base_parts+1][1], "idle"))
+				selected_partition = parts_status[number_of_base_parts+1][0];
+			else
+				selected_partition = "base";
 	}
 
 	return selected_partition;
