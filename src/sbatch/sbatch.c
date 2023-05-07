@@ -796,7 +796,8 @@ static int _fill_job_desc_from_opts(job_desc_msg_t *desc)
 	}
 	else
 	{
-		char tmp_part[1];
+		desc->partition = select_part(0);
+		/*char tmp_part[1];
 		sprintf(tmp_part, "%.*s", 1, desc->partition);
 		if (!strcmp("c", tmp_part))
 		{
@@ -810,7 +811,7 @@ static int _fill_job_desc_from_opts(job_desc_msg_t *desc)
 			printf("Local SSD partition specified with no dataset information. Switching to a base partition...\n");
 			desc->partition = "base";
 		}
-		else ;
+		else ;*/
 	}
 	
 	if (opt.licenses)
