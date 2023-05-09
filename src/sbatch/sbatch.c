@@ -483,13 +483,11 @@ int main(int argc, char **argv)
 	alternate_jobid = job_ptr->job_id + 1;	/* in case the current job needs to be cancelled */
 	scontrol_print_part(NULL);	/* slurm function to fill the job info structure */
         
-
-
 	//slurm_sprint_job_info(job_ptr, 0);
 	printf("Job State: %s\n", job_state_string(job_ptr->job_state));
 
 	/* job states: RUNNING, PENDING, FAILED (something was wrong) */
-	if(!strcmp("FAILED", job_state_string(job_ptr->job_state))){
+	if(!strcmp("PENDING", job_state_string(job_ptr->job_state))){
 		/* slurm function to kill the job, takes job ID as argument */
 		slurm_kill_job(resp->job_id, SIGKILL, KILL_JOB_BATCH);
 		ds_store = fopen("jobid_dataset", "r");
@@ -763,10 +761,12 @@ static int _fill_job_desc_from_opts(job_desc_msg_t *desc)
 	desc->partition = xstrdup(opt.partition);
 	desc->profile = opt.profile;
 	desc->dataset_name = xstrdup(opt.dataset_name);	/* reads dataset name */
-	original_partition = opt.partition;	/* this keeps track of what the original partition was */
+	desc->partition = opt.partition;
+	//original_partition = opt.partition;	/* this keeps track of what the original partition was */
 
 	/* change partition if needed */
 	/* when a dataset size has been specified */
+
 	if (opt.dataset_size){
 		char tmp_part[1];
 		desc->dataset_size = opt.dataset_size;	/* set dataset size */
