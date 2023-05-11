@@ -487,7 +487,7 @@ int main(int argc, char **argv)
 	printf("Job State: %s\n", job_state_string(job_ptr->job_state));
 
 	/* job states: RUNNING, PENDING, FAILED (something was wrong) */
-	if(!strcmp("PENDING", job_state_string(job_ptr->job_state))){
+	if(!strcmp("FAILEDd", job_state_string(job_ptr->job_state))){
 		/* slurm function to kill the job, takes job ID as argument */
 		slurm_kill_job(resp->job_id, SIGKILL, KILL_JOB_BATCH);
 		ds_store = fopen("jobid_dataset", "r");
