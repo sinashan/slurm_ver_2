@@ -1876,29 +1876,36 @@ char* select_part(int io_intensive){
 		if (!strcmp(parts_status[number_of_base_parts+1][1], "idle"))
 				selected_partition = "cache";
 		else{
-			for (int i = 1; i <= number_of_base_parts + 1; i++){
+			for (int i = 0; i <= number_of_base_parts + 1; i++){
 					if (!strcmp(parts_status[i][1], "idle"))
 						selected_partition = parts_status[i][0];
 			}
 		}
-		if (!strcmp(selected_partition, "NULL"))
+		if (!strcmp(selected_partition, "NULL")){
 			if (!strcmp(parts_status[number_of_base_parts+1][1], "idle"))
 				selected_partition = "cache";
 			else
 				selected_partition = "base";
+		}
 	}
 	else if (!io_intensive){
-		for (int i = 1; i <= number_of_base_parts + 1; i++){
-			if (!strcmp(parts_status[i][1], "idle"))
+		for (int i = 0; i <= number_of_base_parts + 1; i++){
+			if (!strcmp(parts_status[i][1], "idle")){
+				printf("Partitions: %s\n", parts_status[0][0]);
 				selected_partition = parts_status[i][0];
+				break;
+			}
+			else
+				continue;
 		}
-		if (!strcmp(selected_partition, "NULL"))
+		if (!strcmp(selected_partition, "NULL")){
 			if (!strcmp(parts_status[number_of_base_parts+1][1], "idle"))
 				selected_partition = parts_status[number_of_base_parts+1][0];
 			else
 				selected_partition = "base";
+		}
 	}
-
+	printf("Selected Partition: %s\n", selected_partition);
 	return selected_partition;
 }
 
