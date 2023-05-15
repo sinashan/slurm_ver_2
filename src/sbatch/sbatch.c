@@ -802,7 +802,6 @@ static int _fill_job_desc_from_opts(job_desc_msg_t *desc)
 	}
 	else
 	{
-		printf("Your application is CPU intensive, because no dataset info has been specified");
 		desc->partition = select_part(0);
 		/*char tmp_part[1];
 		sprintf(tmp_part, "%.*s", 1, desc->partition);
@@ -1873,43 +1872,44 @@ extern
 char* select_part(int io_intensive){
 	char* selected_partition = "NULL";
 	check_parts_status();	/* get the most recent status of partitions */
+
 	if (io_intensive){
-		if (!strcmp(parts_status[number_of_base_parts][1], "idle"))
+		printf("I/O Intensive");
+		if (!strcmp(parts_status[number_of_base_parts+1][1], "idle"))
 				selected_partition = "cache";
 		else{
-			for (int i = 0; i <= number_of_base_parts + 1; i++){
-					if (!strcmp(parts_status[i][1], "idle") &&
-						strcmp(parts_status[number_of_base_parts][0], "local"))
+			for (int i = 0; i <= number_of_base_parts; i++){
+					if (!strcmp(parts_status[i][1], "idle"))
 						selected_partition = parts_status[i][0];
 			}
 		}
 		if (!strcmp(selected_partition, "NULL")){
-			if (!strcmp(parts_status[number_of_base_parts][1], "idle") &&
-				strcmp(parts_status[number_of_base_parts][0], "local"))
+			if (!strcmp(parts_status[number_of_base_parts+1][1], "idle"))
 				selected_partition = "cache";
 			else
 				selected_partition = "base";
 		}
 	}
 	else if (!io_intensive){
-		for (int i = 0; i <= number_of_base_parts + 1; i++){
-			if (!strcmp(parts_status[i][1], "idle" &&
-				strcmp(parts_status[number_of_base_parts][0], "local"))){
+		printf("Not I/O Intensive");
+		for (int i = 0; i <= number_of_base_parts; i++){
+			if (!strcmp(parts_status[i][1], "idle")){
 				selected_partition = parts_status[i][0];
 				break;
 			}
 			else
 				continue;
 		}
+		printf("Selected Partition1: %s\n", selected_partition);
 		if (!strcmp(selected_partition, "NULL")){
-			if (!strcmp(parts_status[number_of_base_parts][1], "idle") &&
-				strcmp(parts_status[number_of_base_parts][0], "local"))
+			if (!strcmp(parts_status[number_of_base_parts+1][1], "idle"))
 				selected_partition = parts_status[number_of_base_parts+1][0];
 			else
 				selected_partition = "base";
 		}
 	}
-	printf("Selected Partition: %s\n", selected_partition);
+
+	printf("Selected Partition2: %s\n", selected_partition);
 	return selected_partition;
 }
 
