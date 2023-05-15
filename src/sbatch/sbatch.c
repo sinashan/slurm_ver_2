@@ -1873,7 +1873,7 @@ char* select_part(int io_intensive){
 	char* selected_partition = "NULL";
 	check_parts_status();	/* get the most recent status of partitions */
 	if (io_intensive){
-		if (!strcmp(parts_status[number_of_base_parts+1][1], "idle"))
+		if (!strcmp(parts_status[number_of_base_parts][1], "idle"))
 				selected_partition = "cache";
 		else{
 			for (int i = 0; i <= number_of_base_parts + 1; i++){
@@ -1881,8 +1881,9 @@ char* select_part(int io_intensive){
 						selected_partition = parts_status[i][0];
 			}
 		}
-		if (!strcmp(selected_partition, "NULL") || !strcmp(selected_partition, "local")){
-			if (!strcmp(parts_status[number_of_base_parts+1][1], "idle"))
+		if (!strcmp(selected_partition, "NULL")){
+			if (!strcmp(parts_status[number_of_base_parts][1], "idle") &&
+				!strcmp(parts_status[number_of_base_parts][0], "local"))
 				selected_partition = "cache";
 			else
 				selected_partition = "base";
@@ -1897,8 +1898,9 @@ char* select_part(int io_intensive){
 			else
 				continue;
 		}
-		if (!strcmp(selected_partition, "NULL") || !strcmp(selected_partition, "local")){
-			if (!strcmp(parts_status[number_of_base_parts+1][1], "idle"))
+		if (!strcmp(selected_partition, "NULL")){
+			if (!strcmp(parts_status[number_of_base_parts][1], "idle") &&
+				!strcmp(parts_status[number_of_base_parts][0], "local"))
 				selected_partition = parts_status[number_of_base_parts+1][0];
 			else
 				selected_partition = "base";
