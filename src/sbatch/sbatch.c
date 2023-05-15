@@ -802,6 +802,7 @@ static int _fill_job_desc_from_opts(job_desc_msg_t *desc)
 	}
 	else
 	{
+		printf("Your application is CPU intensive, because no dataset info has been specified");
 		desc->partition = select_part(0);
 		/*char tmp_part[1];
 		sprintf(tmp_part, "%.*s", 1, desc->partition);
@@ -1877,7 +1878,8 @@ char* select_part(int io_intensive){
 				selected_partition = "cache";
 		else{
 			for (int i = 0; i <= number_of_base_parts + 1; i++){
-					if (!strcmp(parts_status[i][1], "idle"))
+					if (!strcmp(parts_status[i][1], "idle") &&
+						strcmp(parts_status[number_of_base_parts][0], "local"))
 						selected_partition = parts_status[i][0];
 			}
 		}
@@ -1891,7 +1893,8 @@ char* select_part(int io_intensive){
 	}
 	else if (!io_intensive){
 		for (int i = 0; i <= number_of_base_parts + 1; i++){
-			if (!strcmp(parts_status[i][1], "idle")){
+			if (!strcmp(parts_status[i][1], "idle" &&
+				strcmp(parts_status[number_of_base_parts][0], "local"))){
 				selected_partition = parts_status[i][0];
 				break;
 			}
