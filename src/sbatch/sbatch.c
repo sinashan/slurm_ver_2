@@ -1883,7 +1883,7 @@ char* select_part(int io_intensive){
 		}
 		if (!strcmp(selected_partition, "NULL")){
 			if (!strcmp(parts_status[number_of_base_parts][1], "idle") &&
-				!strcmp(parts_status[number_of_base_parts][0], "local"))
+				strcmp(parts_status[number_of_base_parts][0], "local"))
 				selected_partition = "cache";
 			else
 				selected_partition = "base";
@@ -1900,7 +1900,7 @@ char* select_part(int io_intensive){
 		}
 		if (!strcmp(selected_partition, "NULL")){
 			if (!strcmp(parts_status[number_of_base_parts][1], "idle") &&
-				!strcmp(parts_status[number_of_base_parts][0], "local"))
+				strcmp(parts_status[number_of_base_parts][0], "local"))
 				selected_partition = parts_status[number_of_base_parts+1][0];
 			else
 				selected_partition = "base";
