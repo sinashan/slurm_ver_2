@@ -487,10 +487,16 @@ int main(int argc, char **argv)
 	printf("Job State: %s\n", job_state_string(job_ptr->job_state));
 
 	/* job states: RUNNING, PENDING, FAILED (something was wrong) */
-	if(!strcmp("FAILEDd", job_state_string(job_ptr->job_state))){
+	if(!strcmp("PENDING", job_state_string(job_ptr->job_state))){
+
+		printf("Job ID: %d\n", job_ptr->job_id);
+		FILE *not_executed;
+		not_executed = fopen("not_executed", "a");
+		fprintf(not_executed, "%d\t%s\n", job_ptr->job_id , argv[1]);
+
 		/* slurm function to kill the job, takes job ID as argument */
-		slurm_kill_job(resp->job_id, SIGKILL, KILL_JOB_BATCH);
-		ds_store = fopen("jobid_dataset", "r");
+		//slurm_kill_job(resp->job_id, SIGKILL, KILL_JOB_BATCH);
+		//ds_store = fopen("jobid_dataset", "r");
 		/*char* temp_part = job_ptr->partition;
 		printf("Partition %s cannot be used because it's full.\n", job_ptr->partition);
 		slurm_kill_job(resp->job_id, SIGKILL, KILL_JOB_BATCH);
