@@ -1909,7 +1909,7 @@ char* select_part(int io_intensive){
 				selected_partition = "base";
 		}
 	}
-
+	printf("Selected Partition: %s\n", selected_partition);
 	return selected_partition;
 }
 
