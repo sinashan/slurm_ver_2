@@ -1874,7 +1874,6 @@ char* select_part(int io_intensive){
 	check_parts_status();	/* get the most recent status of partitions */
 
 	if (io_intensive){
-		printf("I/O Intensive");
 		if (!strcmp(parts_status[number_of_base_parts+1][1], "idle"))
 				selected_partition = "cache";
 		else{
@@ -1884,14 +1883,13 @@ char* select_part(int io_intensive){
 			}
 		}
 		if (!strcmp(selected_partition, "NULL")){
-			if (!strcmp(parts_status[number_of_base_parts+1][1], "idle"))
+			if (!strcmp(parts_status[number_of_base_parts][1], "idle"))
 				selected_partition = "cache";
 			else
 				selected_partition = "base";
 		}
 	}
 	else if (!io_intensive){
-		printf("Not I/O Intensive");
 		for (int i = 0; i <= number_of_base_parts; i++){
 			if (!strcmp(parts_status[i][1], "idle")){
 				selected_partition = parts_status[i][0];
@@ -1900,16 +1898,14 @@ char* select_part(int io_intensive){
 			else
 				continue;
 		}
-		printf("Selected Partition1: %s\n", selected_partition);
 		if (!strcmp(selected_partition, "NULL")){
-			if (!strcmp(parts_status[number_of_base_parts+1][1], "idle"))
+			if (!strcmp(parts_status[number_of_base_parts][1], "idle"))
 				selected_partition = parts_status[number_of_base_parts+1][0];
 			else
 				selected_partition = "base";
 		}
 	}
 
-	printf("Selected Partition2: %s\n", selected_partition);
 	return selected_partition;
 }
 
