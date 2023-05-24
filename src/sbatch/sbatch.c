@@ -1874,7 +1874,7 @@ char* select_part(int io_intensive){
 	check_parts_status();	/* get the most recent status of partitions */
 
 	if (io_intensive){
-		if (!strcmp(parts_status[number_of_base_parts+1][1], "idle"))
+		if (!strcmp(parts_status[number_of_base_parts][1], "idle"))
 				selected_partition = "cache";
 		else{
 			for (int i = 0; i <= number_of_base_parts; i++){
@@ -1888,7 +1888,6 @@ char* select_part(int io_intensive){
 			else
 				selected_partition = "base";
 		}
-		printf("Selected part: %s\n", selected_partition);
 	}
 	else if (!io_intensive){
 		for (int i = 0; i <= number_of_base_parts; i++){
