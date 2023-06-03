@@ -171,7 +171,8 @@ int number_of_base_parts = 1;
 int number_of_cache_parts = 1;
 int number_of_local_parts = 1;
 
-char* parts_status[100][2][256];
+/* add the number of different partitions (base + cache + local) */
+char* parts_status[3][2][256];
 
 /* Famous datasets */
 char* datasets[11] = {
@@ -1909,6 +1910,15 @@ char* select_part(int io_intensive){
 	return selected_partition;
 }
 
+// Comparison function for qsort
+int compare_first_element(const void* a, const void* b) {
+    // Cast the arguments to const char*(*)
+    const char* const (*arr1)[2][256] = a;
+    const char* const (*arr2)[2][256] = b;
+
+    // Compare the first elements of the sub-arrays using strcmp
+    return strcmp((*arr1)[0], (*arr2)[0]);
+}
 
 extern
 char* check_parts_status(){
@@ -1936,6 +1946,16 @@ char* check_parts_status(){
         }
         col = 0;
         row++;
+    }
+
+	int num_elements = sizeof(parts_status) / sizeof(parts_status[0]);
+
+    // Sort the array
+    qsort(parts_status, num_elements, sizeof(parts_status[0]), compare_first_element);
+
+    // Print the sorted array
+    for (int i = 0; i < num_elements; i++) {
+        printf("%s\n", parts_status[i][0][0]);
     }
 
     pclose(fp);
