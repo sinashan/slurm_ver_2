@@ -838,7 +838,7 @@ static int _fill_job_desc_from_opts(job_desc_msg_t *desc)
 		}
 		else ;*/
 	}
-	printf("Selected Partition: %s\n", desc->partition);
+	//printf("Selected Partition: %s\n", desc->partition);
 	if (opt.licenses)
 		desc->licenses = xstrdup(opt.licenses);
 	if (opt.nodes_set) {
