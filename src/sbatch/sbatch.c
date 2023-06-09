@@ -785,7 +785,25 @@ static int _fill_job_desc_from_opts(job_desc_msg_t *desc)
 			if (desc->dataset_name != NULL){
 				/* if dataset is popular */
 				if (check_if_dataset_famous(desc->dataset_name))
-					desc->partition = "local";
+				{
+					/* search for empty local partition(s) */
+					bool idle_or_not = false;
+					for (int i = number_of_base_parts + number_of_cache_parts; 
+					i < number_of_base_parts + number_of_cache_parts + number_of_local_parts; 
+					i++)
+					{
+						if (!strcmp(parts_status[i][1], "idle")){
+							desc->partition = parts_status[i][0];
+							idle_or_not = true;
+							break;
+						}
+					}
+					if (!idle_or_not){
+						/* choose a random local partition */
+						srand(time(NULL));
+						desc->partition = parts_status[(rand() % (number_of_local_parts)) + number_of_base_parts + number_of_cache_parts];
+					}
+				}
 				else	
 					desc->partition = select_part(1);
 			}
@@ -820,7 +838,7 @@ static int _fill_job_desc_from_opts(job_desc_msg_t *desc)
 		}
 		else ;*/
 	}
-	
+	printf("Selected Partition: %s\n", desc->partition);
 	if (opt.licenses)
 		desc->licenses = xstrdup(opt.licenses);
 	if (opt.nodes_set) {
@@ -1875,7 +1893,30 @@ char* select_part(int io_intensive){
 	check_parts_status();	/* get the most recent status of partitions */
 
 	if (io_intensive){
-		if (!strcmp(parts_status[number_of_base_parts][1], "idle"))
+		/* search cache partition(s) */
+		for (int i = number_of_base_parts; i <= number_of_base_parts + number_of_cache_parts; i++)
+		{
+			if (!strcmp(parts_status[i][1], "idle"))
+				selected_partition = parts_status[i][0];
+		}
+		if (!strcmp(selected_partition, "NULL")){
+			/* search base partition(s)*/
+			for (int i = 0; i <= number_of_base_parts; i++){
+				if (!strcmp(parts_status[i][1], "idle"))
+					selected_partition = parts_status[i][0];
+			}
+
+			/* no free base partition, choose one randomly */
+			if (!strcmp(selected_partition, "NULL")){
+				// Set the seed for the random number generator
+				srand(time(NULL));
+
+				// Generate a random number within the specified range
+				selected_partition = parts_status[(rand() % (number_of_base_parts))];
+			}
+		}
+
+		/*if (!strcmp(parts_status[number_of_base_parts][1], "idle"))
 				selected_partition = "cache";
 		else{
 			for (int i = 0; i <= number_of_base_parts; i++){
@@ -1888,22 +1929,35 @@ char* select_part(int io_intensive){
 				selected_partition = "cache";
 			else
 				selected_partition = "base";
-		}
+		}*/
 	}
 	else if (!io_intensive){
-		for (int i = 0; i <= number_of_base_parts; i++){
-			if (!strcmp(parts_status[i][1], "idle")){
+		/* search base partition(s)*/
+		for (int i = 0; i < number_of_base_parts; i++){
+			if (!strcmp(parts_status[i][1], "idle"))
+			{
 				selected_partition = parts_status[i][0];
 				break;
 			}
-			else
-				continue;
 		}
 		if (!strcmp(selected_partition, "NULL")){
-			if (!strcmp(parts_status[number_of_base_parts][1], "idle"))
-				selected_partition = parts_status[number_of_base_parts+1][0];
-			else
-				selected_partition = "base";
+			/* search cache partition(s)*/
+			for (int i = number_of_base_parts; i < number_of_base_parts + number_of_cache_parts; i++){
+				if (!strcmp(parts_status[i][1], "idle"))
+				{
+					selected_partition = parts_status[i][0];
+					break;
+				}
+			}
+
+			/* no free base partition, choose one randomly */
+			if (!strcmp(selected_partition, "NULL")){
+				// Set the seed for the random number generator
+				srand(time(NULL));
+
+				// Generate a random number within the specified range
+				selected_partition = parts_status[(rand() % (number_of_base_parts))];
+			}
 		}
 	}
 
@@ -1936,7 +1990,7 @@ char* check_parts_status(){
         }
         col = 0;
         row++;
-    }
+	}
 
     pclose(fp);
 }
