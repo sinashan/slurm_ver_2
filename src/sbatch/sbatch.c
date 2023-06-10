@@ -208,10 +208,6 @@ int main(int argc, char **argv)
 
 	readConfiguration(&number_of_base_parts, &number_of_cache_parts, &number_of_local_parts);
 
-	printf("Base: %d\n", number_of_base_parts);
-	printf("Cache: %d\n", number_of_cache_parts);
-	printf("Local: %d\n", number_of_local_parts);
-
 	if (allocatePartsStatus(number_of_base_parts + number_of_cache_parts + number_of_local_parts, &parts_status) != 0) {
 			// Error occurred while allocating memory
 			return 1;
