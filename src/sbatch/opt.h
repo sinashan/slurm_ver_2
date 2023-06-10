@@ -157,5 +157,7 @@ extern void delete_previous_job(char *);
 extern char* earliest_finish_time(int, char*);
 extern char* select_part(int);
 extern char* check_parts_status();
+void readConfiguration(int*, int*, int*);
+int allocatePartsStatus(int, char****);
 
 #endif	/* _HAVE_OPT_H */

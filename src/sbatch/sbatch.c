@@ -172,7 +172,7 @@ int number_of_cache_parts = 1;
 int number_of_local_parts = 1;
 
 /* add the number of different partitions (base + cache + local) */
-char* parts_status[3][2][256];
+char*** parts_status;
 
 /* Famous datasets */
 char* datasets[11] = {
@@ -205,19 +205,24 @@ int main(int argc, char **argv)
 	sbatch_env_t *local_env = NULL;
 	bool quiet = false;
 
-	/* create an array for the base partitions */
-	char **base_parts = malloc(number_of_base_parts * sizeof(char*));
+	int base_parts = 1;
+	int cache_parts = 1;
+	int local_parts = 1;
 
-	for (int i = 0; i < number_of_base_parts; i++){
-		char *temp = malloc(10 * sizeof(char));
-		if (i == 0)
-			base_parts[i] = "base";
-		else{
-			sprintf(temp, "base%d", i);
-			base_parts[i] = temp;
-		}
+	readConfiguration(&base_parts, &cache_parts, &local_parts);
+
+	number_of_base_parts = base_parts;
+	number_of_cache_parts = cache_parts;
+	number_of_local_parts = local_parts;
+
+	printf("Base: %d\n", number_of_base_parts);
+	printf("Cache: %d\n", number_of_cache_parts);
+	printf("Local: %d\n", number_of_local_parts);
+
+	if (allocatePartsStatus(number_of_base_parts + number_of_cache_parts + number_of_local_parts, &parts_status) != 0) {
+			// Error occurred while allocating memory
+			return 1;
 	}
-
 
 	/* added by Sinashan */
 	FILE *ds_store;
@@ -593,6 +598,88 @@ int main(int argc, char **argv)
 	xfree(script_body);
 
 	return rc;
+}
+
+/* read number partitions from the config file (added by SINASHAN) */
+void readConfiguration(int* base_parts, int* cache_parts, int* local_parts) {
+    FILE* config_file = fopen("/etc/slurm_parts_config", "r"); // Open the configuration file for reading
+    if (config_file == NULL) {
+        printf("Error opening the configuration file.\n");
+        return; // Error occurred while opening the file
+    }
+
+    // Read the values from the configuration file
+    char line[256];
+    int section_found = 0;
+    while (fgets(line, sizeof(line), config_file)) {
+        // Check if the line starts with '[Number of Partitions]'
+        if (strstr(line, "[Number of Partitions]") != NULL) {
+            section_found = 1;
+        } else if (section_found) {
+            char variable[256];
+            int value;
+
+            // Parse the variable and value
+            if (sscanf(line, "%[^=]= %d", variable, &value) == 2) {
+                // Remove leading and trailing whitespace from the variable name
+                char trimmed_variable[256];
+                sscanf(variable, " %255[^ \t]", trimmed_variable);
+
+                if (strcmp(trimmed_variable, "Base") == 0) {
+                    *base_parts = value;
+                } else if (strcmp(trimmed_variable, "Cache") == 0) {
+                    *cache_parts = value;
+                } else if (strcmp(trimmed_variable, "Local") == 0) {
+                    *local_parts = value;
+                }
+            }
+        }
+    }
+
+    fclose(config_file); // Close the configuration file
+}
+
+
+/* allocate parts_status array (added by SINASHAN)*/
+int allocatePartsStatus(int n, char**** parts_status) {
+    *parts_status = malloc(n * sizeof(char**));
+    if (*parts_status == NULL) {
+        printf("Error allocating memory for the array.\n");
+        return 1; // Error occurred while allocating memory
+    }
+
+    for (int i = 0; i < n; i++) {
+        (*parts_status)[i] = malloc(2 * sizeof(char*));
+        if ((*parts_status)[i] == NULL) {
+            printf("Error allocating memory for the inner array.\n");
+            // Free memory for previously allocated inner arrays
+            for (int j = 0; j < i; j++) {
+                free((*parts_status)[j]);
+            }
+            free(*parts_status);
+            return 1; // Error occurred while allocating memory
+        }
+
+        // Fixed-size arrays for the second and third dimensions
+        for (int j = 0; j < 2; j++) {
+            (*parts_status)[i][j] = malloc(256 * sizeof(char));
+            if ((*parts_status)[i][j] == NULL) {
+                printf("Error allocating memory for the innermost array.\n");
+                // Free memory for previously allocated innermost arrays
+                for (int k = 0; k < j; k++) {
+                    free((*parts_status)[i][k]);
+                }
+                // Free memory for previously allocated inner arrays
+                for (int k = 0; k < i; k++) {
+                    free((*parts_status)[k]);
+                }
+                free(*parts_status);
+                return 1; // Error occurred while allocating memory
+            }
+        }
+    }
+
+    return 0; // Memory allocation successful
 }
 
 /* Insert the contents of "burst_buffer_file" into "script_body" */
