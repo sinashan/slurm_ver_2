@@ -600,12 +600,27 @@ int main(int argc, char **argv)
 	return rc;
 }
 
+void createDefaultConfigFile() {
+    FILE* config_file = fopen("/etc/slurm_part.conf", "w");
+    if (config_file == NULL) {
+        printf("Error creating the configuration file.\n");
+        return;
+    }
+
+    fprintf(config_file, "[[Partition Configuration]]\n");
+    fprintf(config_file, "Base = 1\n");
+    fprintf(config_file, "Cache = 1\n");
+    fprintf(config_file, "Local = 1\n");
+
+    fclose(config_file);
+}
+
 /* read number partitions from the config file (added by SINASHAN) */
 void readConfiguration(int* base_parts, int* cache_parts, int* local_parts) {
-    FILE* config_file = fopen("/etc/slurm_parts_config", "r"); // Open the configuration file for reading
+    FILE* config_file = fopen("/etc/slurm_part.conf", "r"); // Open the configuration file for reading
     if (config_file == NULL) {
-        printf("Error opening the configuration file.\n");
-        return; // Error occurred while opening the file
+        createDefaultConfigFile();
+		config_file = fopen("/etc/slurm_part.conf", "r");
     }
 
     // Read the values from the configuration file
