@@ -205,15 +205,8 @@ int main(int argc, char **argv)
 	sbatch_env_t *local_env = NULL;
 	bool quiet = false;
 
-	int base_parts = 1;
-	int cache_parts = 1;
-	int local_parts = 1;
 
-	readConfiguration(&base_parts, &cache_parts, &local_parts);
-
-	number_of_base_parts = base_parts;
-	number_of_cache_parts = cache_parts;
-	number_of_local_parts = local_parts;
+	readConfiguration(&number_of_base_parts, &number_of_cache_parts, &number_of_local_parts);
 
 	printf("Base: %d\n", number_of_base_parts);
 	printf("Cache: %d\n", number_of_cache_parts);
@@ -627,15 +620,16 @@ void readConfiguration(int* base_parts, int* cache_parts, int* local_parts) {
     char line[256];
     int section_found = 0;
     while (fgets(line, sizeof(line), config_file)) {
-        // Check if the line starts with '[Number of Partitions]'
-        if (strstr(line, "[Number of Partitions]") != NULL) {
+        // Check if the line starts with '[[Partition Configuration]]'
+        if (strstr(line, "[[Partition Configuration]]") != NULL) {
             section_found = 1;
         } else if (section_found) {
             char variable[256];
             int value;
-
+			
             // Parse the variable and value
             if (sscanf(line, "%[^=]= %d", variable, &value) == 2) {
+				
                 // Remove leading and trailing whitespace from the variable name
                 char trimmed_variable[256];
                 sscanf(variable, " %255[^ \t]", trimmed_variable);
