@@ -874,14 +874,15 @@ static int _fill_job_desc_from_opts(job_desc_msg_t *desc)
 		if (desc->dataset_size > 50){
 			printf("Your application is I/O intensive, with a data set size of %d GB for your application.\n"
 				, desc->dataset_size);
+			check_parts_status();
 			if (desc->dataset_name != NULL){
 				/* if dataset is popular */
 				if (check_if_dataset_famous(desc->dataset_name))
 				{
 					/* search for empty local partition(s) */
 					bool idle_or_not = false;
-					for (int i = number_of_base_parts + number_of_cache_parts; 
-					i < number_of_base_parts + number_of_cache_parts + number_of_local_parts; 
+					for (int i = number_of_base_parts + number_of_cache_parts; \
+					i < number_of_base_parts + number_of_cache_parts + number_of_local_parts; \
 					i++)
 					{
 						if (!strcmp(parts_status[i][1], "idle")){
@@ -1983,17 +1984,17 @@ extern
 char* select_part(int io_intensive){
 	char* selected_partition = "NULL";
 	check_parts_status();	/* get the most recent status of partitions */
-
+	
 	if (io_intensive){
 		/* search cache partition(s) */
-		for (int i = number_of_base_parts; i <= number_of_base_parts + number_of_cache_parts; i++)
+		for (int i = number_of_base_parts; i < number_of_base_parts + number_of_cache_parts; i++)
 		{
 			if (!strcmp(parts_status[i][1], "idle"))
 				selected_partition = parts_status[i][0];
 		}
 		if (!strcmp(selected_partition, "NULL")){
 			/* search base partition(s)*/
-			for (int i = 0; i <= number_of_base_parts; i++){
+			for (int i = 0; i < number_of_base_parts; i++){
 				if (!strcmp(parts_status[i][1], "idle"))
 					selected_partition = parts_status[i][0];
 			}
@@ -2007,7 +2008,6 @@ char* select_part(int io_intensive){
 				selected_partition = parts_status[(rand() % (number_of_base_parts))];
 			}
 		}
-
 		/*if (!strcmp(parts_status[number_of_base_parts][1], "idle"))
 				selected_partition = "cache";
 		else{
