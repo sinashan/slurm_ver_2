@@ -894,7 +894,7 @@ static int _fill_job_desc_from_opts(job_desc_msg_t *desc)
 					if (!idle_or_not){
 						/* choose a random local partition */
 						srand(time(NULL));
-						desc->partition = parts_status[(rand() % (number_of_local_parts)) + number_of_base_parts + number_of_cache_parts];
+						desc->partition = parts_status[(rand() % (number_of_local_parts)) + number_of_base_parts + number_of_cache_parts][0];
 					}
 				}
 				else	
