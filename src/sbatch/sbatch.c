@@ -2005,7 +2005,7 @@ char* select_part(int io_intensive){
 				srand(time(NULL));
 
 				// Generate a random number within the specified range
-				selected_partition = parts_status[(rand() % (number_of_base_parts))];
+				selected_partition = parts_status[(rand() % (number_of_base_parts))][0];
 			}
 		}
 		/*if (!strcmp(parts_status[number_of_base_parts][1], "idle"))
@@ -2048,7 +2048,7 @@ char* select_part(int io_intensive){
 				srand(time(NULL));
 
 				// Generate a random number within the specified range
-				selected_partition = parts_status[(rand() % (number_of_base_parts))];
+				selected_partition = parts_status[(rand() % (number_of_base_parts))][0];
 			}
 		}
 	}
