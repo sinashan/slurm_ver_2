@@ -45,7 +45,10 @@ def get_pending_jobs_list():
         job.append(get_script_name(job[0]))
 
 
-    return jobs_pending
+    jobs_pending.sort(key=lambda x: int(x[0]))
+    sorted_jobs_by_id = sorted(jobs_pending, key=lambda x: int(x[0]))
+
+    return sorted_jobs_by_id
 
 
 def get_script_name(job_id):
@@ -79,6 +82,8 @@ while True:
 
     pending_jobs = get_pending_jobs_list()
     idle_parts = check_idle_partitions()
+
+    print(pending_jobs)
 
     if idle_parts:
         submit_prev_id = 0
