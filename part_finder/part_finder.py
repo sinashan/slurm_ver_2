@@ -70,8 +70,12 @@ def write_changed_partition_to_file(prev_part, prev_id, submit_part, output_resu
           format(prev_id, submit_part, new_id))
 
     changed = open("repartition_log", 'a')
-    changed.write(prev_part + " - > " + submit_part + "    " + prev_id + " -> " + new_id + "\n")
+    changed.write(prev_part + " --> " + submit_part + "    " + prev_id + " -> " + new_id + "\n")
     changed.close()
+
+def cancel_pending_jobs(pending):
+    for job in pending:
+        subprocess.Popen("scancel" + str(job[0][0]), stdout=subprocess.PIPE, stdin=subprocess.PIPE, shell=True)
 
 #with open(not_executed_path, 'r') as not_executed:
     # Read the existing lines in the file
@@ -81,9 +85,9 @@ def write_changed_partition_to_file(prev_part, prev_id, submit_part, output_resu
 while True:
 
     pending_jobs = get_pending_jobs_list()
+    cancel_pending_jobs(pending_jobs)
     idle_parts = check_idle_partitions()
 
-    print(pending_jobs)
 
     if idle_parts:
         submit_prev_id = 0
@@ -99,9 +103,9 @@ while True:
             #print(submit_partition)
             #print(submit_script)
     
-            job_resubmit = subprocess.Popen("scancel " + str(submit_prev_id) + " | " +
-                            "sbatch " + submit_script , stdout=subprocess.PIPE, stdin=subprocess.PIPE, shell=True)
+            job_resubmit = subprocess.Popen("sbatch " + submit_script , stdout=subprocess.PIPE, stdin=subprocess.PIPE, shell=True)
             write_changed_partition_to_file(submit_prev_part, submit_prev_id, submit_partition, job_resubmit)
+            pending_jobs = pending_jobs[1:]
 
     # Re-open the file in read-only mode
     #with open(not_executed_path, 'r') as not_executed:
