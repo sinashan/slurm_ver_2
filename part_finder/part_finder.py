@@ -75,16 +75,17 @@ def write_changed_partition_to_file(prev_part, prev_id, submit_part, output_resu
 
 def cancel_pending_jobs(pending):
     for job in pending:
-        subprocess.Popen("scancel" + str(job[0][0]), stdout=subprocess.PIPE, stdin=subprocess.PIPE, shell=True)
+        subprocess.Popen("scancel" + str(job[0]), stdout=subprocess.PIPE, stdin=subprocess.PIPE, shell=True)
 
 #with open(not_executed_path, 'r') as not_executed:
     # Read the existing lines in the file
 #    existing_lines = not_executed.readlines()
 
+pending_jobs = []
 # Start an infinite loop to check for new lines
 while True:
 
-    pending_jobs = get_pending_jobs_list()
+    pending_jobs.append(get_pending_jobs_list())
     cancel_pending_jobs(pending_jobs)
     idle_parts = check_idle_partitions()
 
@@ -120,6 +121,6 @@ while True:
     #    existing_lines = current_lines
 
     # Wait for some time before checking again
-    time.sleep(5)
+    time.sleep(1)
 
 
