@@ -75,7 +75,7 @@ def write_changed_partition_to_file(prev_part, prev_id, submit_part, output_resu
 
 def cancel_pending_jobs(pending):
     for job in pending:
-        subprocess.Popen("scancel" + str(job[0]), stdout=subprocess.PIPE, stdin=subprocess.PIPE, shell=True)
+        subprocess.Popen("scancel " + str(job[0]), stdout=subprocess.PIPE, stdin=subprocess.PIPE, shell=True)
 
 #with open(not_executed_path, 'r') as not_executed:
     # Read the existing lines in the file
