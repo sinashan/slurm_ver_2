@@ -88,8 +88,7 @@ while True:
     pending_jobs = pending_jobs + get_pending_jobs_list()
     idle_parts = check_idle_partitions()
     if pending_jobs:
-        if not idle_parts:
-            cancel_pending_jobs(pending_jobs)
+        cancel_pending_jobs(pending_jobs)
 
 
     if idle_parts:
