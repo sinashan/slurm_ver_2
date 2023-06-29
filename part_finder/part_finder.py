@@ -85,8 +85,9 @@ pending_jobs = []
 # Start an infinite loop to check for new lines
 while True:
 
-    pending_jobs.append(get_pending_jobs_list())
-    cancel_pending_jobs(pending_jobs)
+    pending_jobs = pending_jobs + get_pending_jobs_list()
+    if pending_jobs[0]:
+        cancel_pending_jobs(pending_jobs)
     idle_parts = check_idle_partitions()
 
 
@@ -94,7 +95,7 @@ while True:
         submit_prev_id = 0
         submit_partition = ''
         submit_script = ''
-        if pending_jobs:
+        if pending_jobs[0]:
             submit_prev_id = pending_jobs[0][0]
             submit_prev_part = pending_jobs[0][1]
             submit_partition = idle_parts[0]
