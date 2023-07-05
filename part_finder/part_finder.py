@@ -45,10 +45,7 @@ def get_pending_jobs_list():
         job.append(get_script_name(job[0]))
 
 
-    jobs_pending.sort(key=lambda x: int(x[0]))
-    sorted_jobs_by_id = sorted(jobs_pending, key=lambda x: int(x[0]))
-
-    return sorted_jobs_by_id
+    return jobs_pending
 
 
 def get_script_name(job_id):
@@ -70,26 +67,18 @@ def write_changed_partition_to_file(prev_part, prev_id, submit_part, output_resu
           format(prev_id, submit_part, new_id))
 
     changed = open("repartition_log", 'a')
-    changed.write(prev_part + " --> " + submit_part + "    " + prev_id + " -> " + new_id + "\n")
+    changed.write(prev_part + " - > " + submit_part + "    " + prev_id + " -> " + new_id + "\n")
     changed.close()
-
-def cancel_pending_jobs(pending):
-    for job in pending:
-        subprocess.Popen("scancel " + str(job[0]), stdout=subprocess.PIPE, stdin=subprocess.PIPE, shell=True)
 
 #with open(not_executed_path, 'r') as not_executed:
     # Read the existing lines in the file
 #    existing_lines = not_executed.readlines()
 
-pending_jobs = []
 # Start an infinite loop to check for new lines
 while True:
 
-    pending_jobs = pending_jobs + get_pending_jobs_list()
+    pending_jobs = get_pending_jobs_list()
     idle_parts = check_idle_partitions()
-    if pending_jobs:
-        cancel_pending_jobs(pending_jobs)
-
 
     if idle_parts:
         submit_prev_id = 0
@@ -105,9 +94,10 @@ while True:
             #print(submit_partition)
             #print(submit_script)
     
-            job_resubmit = subprocess.Popen("sbatch " + submit_script , stdout=subprocess.PIPE, stdin=subprocess.PIPE, shell=True)
+            job_resubmit = subprocess.Popen("scontrol update JobID=" + submit_prev_id + " " 
+                                            + "partition=" + submit_partition 
+                                            , stdout=subprocess.PIPE, stdin=subprocess.PIPE, shell=True)
             write_changed_partition_to_file(submit_prev_part, submit_prev_id, submit_partition, job_resubmit)
-            pending_jobs = pending_jobs[1:]
 
     # Re-open the file in read-only mode
     #with open(not_executed_path, 'r') as not_executed:
