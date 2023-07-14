@@ -893,8 +893,9 @@ static int _fill_job_desc_from_opts(job_desc_msg_t *desc)
 					}
 					if (!idle_or_not){
 						/* choose a random local partition */
-						srand(time(NULL));
-						desc->partition = parts_status[(rand() % (number_of_local_parts)) + number_of_base_parts + number_of_cache_parts][0];
+						//srand(time(NULL));
+						//desc->partition = parts_status[(rand() % (number_of_local_parts)) + number_of_base_parts + number_of_cache_parts][0];
+						desc->partition = opt.partition;
 					}
 				}
 				else	
@@ -2002,10 +2003,11 @@ char* select_part(int io_intensive){
 			/* no free base partition, choose one randomly */
 			if (!strcmp(selected_partition, "NULL")){
 				// Set the seed for the random number generator
-				srand(time(NULL));
+				//srand(time(NULL));
 
 				// Generate a random number within the specified range
-				selected_partition = parts_status[(rand() % (number_of_base_parts))][0];
+				//selected_partition = parts_status[(rand() % (number_of_base_parts))][0];
+				selected_partition = opt.partition;
 			}
 		}
 		/*if (!strcmp(parts_status[number_of_base_parts][1], "idle"))
@@ -2045,10 +2047,11 @@ char* select_part(int io_intensive){
 			/* no free base partition, choose one randomly */
 			if (!strcmp(selected_partition, "NULL")){
 				// Set the seed for the random number generator
-				srand(time(NULL));
+				//srand(time(NULL));
 
 				// Generate a random number within the specified range
-				selected_partition = parts_status[(rand() % (number_of_base_parts))][0];
+				//selected_partition = parts_status[(rand() % (number_of_base_parts))][0];
+				selected_partition = opt.partition;
 			}
 		}
 	}
