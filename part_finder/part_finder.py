@@ -1,5 +1,6 @@
 import subprocess
 import time
+from datetime import datetime
 
 changed = open("repartition_log", "w")
 changed.close()
@@ -66,14 +67,45 @@ def write_changed_partition_to_file(prev_part, prev_id, submit_part, output_resu
     stdout_output = output_result.stdout.read().decode("utf-8")
     new_id = stdout_output.split(' ')[-1].strip('\n')
 
-    print("Job with the ID of {0} was repartitioned to {1} partition with the new ID of {2}".
-          format(prev_id, submit_part, new_id))
+    #print("Job with the ID of {0} was repartitioned to {1} partition with the new ID of {2}".
+    #      format(prev_id, submit_part, new_id))
+
+
+    current_time = datetime.now().time()
+    current_date = datetime.now().date()
+
+    formatted_time = current_time.strftime("%H:%M:%S")
+    formatted_date = current_date.strftime("%d/%m/%Y")
 
     changed = open("repartition_log", 'a')
-    changed.write(prev_part + " --> " + submit_part + "    " + prev_id + " -> " + new_id + "\n")
+    changed.write(formatted_date + '\t' + formatted_time + '\n')
+    changed.write('Job ID\t\tInitial Partition\t\tNew Partition\t\tNew ID\n')
+    changed.write(f"{prev_id:<10}\t\t{prev_part:<10}\t\t{submit_part:<10}\t\t{new_id:<10}\n")
+    changed.write('----------------------------------------------------------------------\n')
     changed.close()
 
+def write_cancelled_partition(cancelled_jobs):
+    cancelled = open("repartition_log", 'a')
+    current_time = datetime.now().time()
+    current_date = datetime.now().date()
+
+    formatted_time = current_time.strftime("%H:%M:%S")
+    formatted_date = current_date.strftime("%d/%m/%Y")
+    cancelled.write(formatted_date + '\t' + formatted_time + '\n')
+    cancelled.write('Job ID\t\tInitial Partition\t\tNew Partition\t\tNew ID\n')
+    
+    for job in cancelled_jobs:
+        submit_prev_id = job[0]
+        submit_prev_part = job[1]
+        repartitioning = "repartition"
+        cancelled.write(f"{submit_prev_id:<10}\t\t{submit_prev_part:<10}\t\t{repartitioning:<10}\t\t-\n")
+        cancelled.write('----------------------------------------------------------------------\n')
+    
+    cancelled.close()
+        
+
 def cancel_pending_jobs(pending):
+    print(pending)
     for job in pending:
         subprocess.Popen("scancel " + str(job[0]), stdout=subprocess.PIPE, stdin=subprocess.PIPE, shell=True)
 
@@ -82,15 +114,18 @@ def cancel_pending_jobs(pending):
 #    existing_lines = not_executed.readlines()
 
 pending_jobs = []
+pending_jobs_len = 0
 # Start an infinite loop to check for new lines
 while True:
 
     pending_jobs = pending_jobs + get_pending_jobs_list()
-    idle_parts = check_idle_partitions()
-    if pending_jobs:
+    if len(pending_jobs) > pending_jobs_len:
+        pending_jobs_len = len(pending_jobs)
         cancel_pending_jobs(pending_jobs)
+        write_cancelled_partition(pending_jobs)
 
 
+    idle_parts = check_idle_partitions()
     if idle_parts:
         submit_prev_id = 0
         submit_partition = ''
