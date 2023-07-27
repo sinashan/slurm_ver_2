@@ -2,7 +2,7 @@ import subprocess
 import time
 from datetime import datetime
 
-changed = open("repartition_log", "w")
+changed = open("squeue_logs", "w")
 changed.close()
 
 # countes how many lines of the file it has allocated a partition to
@@ -77,7 +77,7 @@ def write_changed_partition_to_file(prev_part, prev_id, submit_part, output_resu
     formatted_time = current_time.strftime("%H:%M:%S")
     formatted_date = current_date.strftime("%d/%m/%Y")
 
-    changed = open("repartition_log", 'a')
+    changed = open("squeue_logs", 'a')
     changed.write(formatted_date + '\t' + formatted_time + '\n')
     changed.write('Job ID\t\tInitial Partition\t\tNew Partition\t\tNew ID\n')
     changed.write(f"{prev_id:<10}\t\t{prev_part:<10}\t\t{submit_part:<10}\t\t{new_id:<10}\n")
@@ -85,7 +85,7 @@ def write_changed_partition_to_file(prev_part, prev_id, submit_part, output_resu
     changed.close()
 
 def write_cancelled_partition(cancelled_jobs):
-    cancelled = open("repartition_log", 'a')
+    cancelled = open("squeue_logs", 'a')
     current_time = datetime.now().time()
     current_date = datetime.now().date()
 
