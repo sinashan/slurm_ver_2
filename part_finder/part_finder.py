@@ -5,6 +5,9 @@ from datetime import datetime
 changed = open("squeue_logs", "w")
 changed.close()
 
+changed = open("repartition_log", "w")
+changed.close()
+
 # countes how many lines of the file it has allocated a partition to
 line_counter = 0
 
@@ -82,6 +85,13 @@ def write_changed_partition_to_file(prev_part, prev_id, submit_part, output_resu
     changed.write('Job ID\t\tInitial Partition\t\tNew Partition\t\tNew ID\n')
     changed.write(f"{prev_id:<10}\t\t{prev_part:<10}\t\t{submit_part:<10}\t\t{new_id:<10}\n")
     changed.write('----------------------------------------------------------------------\n')
+    changed.close()
+
+    #print("Job with the ID of {0} was repartitioned to {1} partition with the new ID of {2}".
+    #      format(prev_id, submit_part, new_id))
+
+    changed = open("repartition_log", 'a')
+    changed.write(prev_part + " --> " + submit_part + "    " + prev_id + " -> " + new_id + "\n")
     changed.close()
 
 def write_cancelled_partition(cancelled_jobs):
