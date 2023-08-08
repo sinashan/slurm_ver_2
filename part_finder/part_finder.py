@@ -1,6 +1,8 @@
 import subprocess
 import time
 from datetime import datetime
+import sys
+import select
 
 changed = open("squeue_logs", "w")
 changed.close()
@@ -128,12 +130,22 @@ pending_jobs_len = 0
 # Start an infinite loop to check for new lines
 while True:
 
+    if select.select([sys.stdin], [], [], 0)[0]:
+            command = input("")
+            #print("User input:", user_input)
+            if 'cancel' in command:
+                job_id_to_be_cancelled = command[command.find(' ')+1:]
+            index = [(i, id.index(job_id_to_be_cancelled)) for i, id in enumerate(pending_jobs) if job_id_to_be_cancelled in id]
+            pending_jobs.pop(index[0][0])
+
+
     pending_jobs = pending_jobs + get_pending_jobs_list()
     if len(pending_jobs) > pending_jobs_len:
         pending_jobs_len = len(pending_jobs)
         cancel_pending_jobs(pending_jobs)
         write_cancelled_partition(pending_jobs)
 
+    #print(pending_jobs)
 
     idle_parts = check_idle_partitions()
     if idle_parts:
