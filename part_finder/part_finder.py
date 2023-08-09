@@ -131,12 +131,20 @@ pending_jobs_len = 0
 while True:
 
     if select.select([sys.stdin], [], [], 0)[0]:
-            command = input("")
-            #print("User input:", user_input)
-            if 'cancel' in command:
+        command = input("")
+        #print("User input:", user_input)
+        if 'cancel' in command:
+            try:
                 job_id_to_be_cancelled = command[command.find(' ')+1:]
-            index = [(i, id.index(job_id_to_be_cancelled)) for i, id in enumerate(pending_jobs) if job_id_to_be_cancelled in id]
-            pending_jobs.pop(index[0][0])
+                index = [(i, id.index(job_id_to_be_cancelled)) for i, id in enumerate(pending_jobs) if job_id_to_be_cancelled in id]
+                pending_jobs.pop(index[0][0])
+                pending_jobs_len = pending_jobs_len - 1
+                print(f"Job ID {job_id_to_be_cancelled} has been cancelled!")
+                continue
+            except:
+                print("Job ID does not exist!")
+        else:
+            print("Unknown command!")
 
 
     pending_jobs = pending_jobs + get_pending_jobs_list()
